@@ -16,10 +16,15 @@ class RolePermissionSeeder extends Seeder
             'members.approve' => 'Approve membership applications.',
             'members.reject' => 'Reject membership applications.',
             'payments.create' => 'Record financial payments.',
+            'payments.view' => 'View financial payments.',
             'payments.verify' => 'Verify financial payments.',
+            'receipts.create' => 'Issue payment receipts.',
+            'accounts.manage' => 'Create and manage financial accounts.',
+            'payment_methods.manage' => 'Manage configurable payment methods.',
             'transactions.create' => 'Record financial transactions.',
             'transactions.view' => 'View financial transaction records.',
             'transactions.verify' => 'Verify financial transactions.',
+            'transactions.reverse' => 'Authorize financial transaction reversals.',
             'loans.investigate' => 'Investigate loan applications.',
             'loans.approve' => 'Approve loan applications.',
             'loans.reject' => 'Reject loan applications.',
@@ -39,12 +44,13 @@ class RolePermissionSeeder extends Seeder
 
         $roles = [
             'member' => ['members.view'],
-            'finance_officer' => ['members.view', 'payments.create', 'payments.verify', 'transactions.create', 'transactions.view', 'transactions.verify', 'reports.view'],
+            'finance_officer' => ['members.view', 'payments.view', 'payments.create', 'payments.verify', 'receipts.create', 'accounts.manage', 'transactions.create', 'transactions.view', 'transactions.verify', 'reports.view'],
             'committee_officer' => ['members.view', 'loans.investigate'],
             'admin' => [
                 'members.view', 'members.review', 'members.approve', 'members.reject', 'loans.investigate',
                 'loans.approve', 'loans.reject', 'loans.disburse', 'notices.manage',
-                'executives.manage', 'settings.manage', 'reports.view',
+                'executives.manage', 'settings.manage', 'payment_methods.manage', 'payments.view', 'payments.verify',
+                'receipts.create', 'accounts.manage', 'transactions.view', 'transactions.reverse', 'reports.view',
             ],
             'super_admin' => array_keys($permissions),
         ];
