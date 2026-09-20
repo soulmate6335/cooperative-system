@@ -29,5 +29,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('registration', function (Request $request): Limit {
             return Limit::perMinute(3)->by($request->ip());
         });
+
+        RateLimiter::for('loan_submission', function (Request $request): Limit {
+            return Limit::perMinute(5)->by($request->user()?->id ?? $request->ip());
+        });
     }
 }

@@ -1,7 +1,13 @@
 <?php
 
+use App\Http\Controllers\AdminLoanController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CommitteeLoanController;
+use App\Http\Controllers\CommitteeMeetingController;
 use App\Http\Controllers\FinancialController;
+use App\Http\Controllers\LoanApplicationController;
+use App\Http\Controllers\LoanGuarantorController;
+use App\Http\Controllers\LoanProductController;
 use App\Http\Controllers\MemberApplicationController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,5 +33,45 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/{application}/approve', [MemberApplicationController::class, 'approve']);
             Route::post('/{application}/reject', [MemberApplicationController::class, 'reject']);
         });
+
+        // Loan products and committee meetings (admin/manageable).
+        Route::get('loan-products', [LoanProductController::class, 'index']);
+        Route::get('admin/loan-products', [LoanProductController::class, 'adminIndex']);
+        Route::post('admin/loan-products', [LoanProductController::class, 'store']);
+        Route::patch('admin/loan-products/{product}', [LoanProductController::class, 'update']);
+        Route::post('admin/loan-products/{product}/deactivate', [LoanProductController::class, 'deactivate']);
+        Route::post('admin/loan-products/{product}/activate', [LoanProductController::class, 'activate']);
+        Route::get('admin/committee-meetings', [CommitteeMeetingController::class, 'index']);
+        Route::post('admin/committee-meetings', [CommitteeMeetingController::class, 'store']);
+        Route::patch('admin/committee-meetings/{meeting}', [CommitteeMeetingController::class, 'update']);
+
+        // Member loan applications.
+        Route::get('member/loans/eligibility', [LoanApplicationController::class, 'eligibility']);
+        Route::post('member/loans/applications', [LoanApplicationController::class, 'store'])->middleware('throttle:loan_submission');
+        Route::get('member/loans/applications', [LoanApplicationController::class, 'index']);
+        Route::get('member/loans/applications/{application}', [LoanApplicationController::class, 'show']);
+        Route::post('member/loans/applications/{application}/submit', [LoanApplicationController::class, 'submit'])->middleware('throttle:loan_submission');
+        Route::post('member/loans/applications/{application}/cancel', [LoanApplicationController::class, 'cancel']);
+        Route::post('member/loans/applications/{application}/guarantors', [LoanGuarantorController::class, 'store']);
+        Route::post('member/loans/applications/{application}/guarantors/{guarantor}/cancel', [LoanGuarantorController::class, 'cancel']);
+
+        // Guarantor self-service.
+        Route::get('member/guarantor-requests', [LoanGuarantorController::class, 'requests']);
+        Route::post('member/guarantor-requests/{guarantor}/accept', [LoanGuarantorController::class, 'accept']);
+        Route::post('member/guarantor-requests/{guarantor}/decline', [LoanGuarantorController::class, 'decline']);
+
+        // Committee investigation.
+        Route::get('committee/loan-applications', [CommitteeLoanController::class, 'index']);
+        Route::get('committee/loan-applications/{application}', [CommitteeLoanController::class, 'show']);
+        Route::post('committee/loan-applications/{application}/investigation', [CommitteeLoanController::class, 'updateInvestigation']);
+        Route::post('committee/loan-applications/{application}/investigation/submit', [CommitteeLoanController::class, 'submitInvestigation']);
+
+        // Admin loan administration.
+        Route::get('admin/loans/applications', [AdminLoanController::class, 'index']);
+        Route::get('admin/loans/applications/{application}', [AdminLoanController::class, 'show']);
+        Route::post('admin/loans/applications/{application}/assign', [AdminLoanController::class, 'assign']);
+        Route::post('admin/loans/applications/{application}/cancel', [AdminLoanController::class, 'cancel']);
+        Route::post('admin/loans/applications/{application}/approve', [AdminLoanController::class, 'approve']);
+        Route::post('admin/loans/applications/{application}/reject', [AdminLoanController::class, 'reject']);
     });
 });

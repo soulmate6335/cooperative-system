@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
+use Database\Factories\MemberFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Member extends Model
 {
-    use HasUuids;
+    /** @use HasFactory<MemberFactory> */
+    use HasFactory, HasUuids;
 
     public $incrementing = false;
 
@@ -46,5 +49,20 @@ class Member extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function loanApplications(): HasMany
+    {
+        return $this->hasMany(LoanApplication::class);
+    }
+
+    public function loanGuarantees(): HasMany
+    {
+        return $this->hasMany(LoanGuarantor::class, 'guarantor_member_id');
+    }
+
+    public function loans(): HasMany
+    {
+        return $this->hasMany(Loan::class);
     }
 }
