@@ -8,7 +8,7 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CircularProgress from '@mui/material/CircularProgress'
 import Stack from '@mui/material/Stack'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormProvider, useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -33,6 +33,7 @@ type FormValues = z.infer<typeof schema>
 export function NewLoanApplicationPage(): ReactNode {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [searchParams] = useSearchParams()
   const [serverError, setServerError] = useState<string | null>(null)
 
   const productsQuery = useQuery({
@@ -42,7 +43,11 @@ export function NewLoanApplicationPage(): ReactNode {
 
   const methods = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { loan_product_id: '', amount_requested_minor: undefined, purpose: '' },
+    defaultValues: {
+      loan_product_id: searchParams.get('product_id') ?? '',
+      amount_requested_minor: undefined,
+      purpose: '',
+    },
   })
 
   const submitMutation = useMutation({

@@ -72,7 +72,7 @@ function LoanProductCard({
           <Button
             variant="contained"
             component={RouterLink}
-            to={`/member/loans/eligibility?product_ids=${id}`}
+            to={`/member/eligibility?product_ids=${id}`}
             sx={{ textTransform: 'none', mt: 'auto' }}
           >
             Check eligibility
@@ -121,7 +121,7 @@ export function MemberLoanProductsPage(): ReactNode {
       title="Loan products"
       subtitle="Available loan products for members"
       actions={
-        <Button component={RouterLink} to="/member/loans/eligibility" variant="outlined" sx={{ textTransform: 'none' }}>
+        <Button component={RouterLink} to="/member/eligibility" variant="outlined" sx={{ textTransform: 'none' }}>
           Loan eligibility
         </Button>
       }

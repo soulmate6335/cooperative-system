@@ -138,44 +138,55 @@ export function AppLayout(): ReactNode {
         </Box>
       </Toolbar>
       <Divider />
-      {sections.map((section) => (
-        <List
-          key={section.title}
-          subheader={
-            <ListSubheader component="div" sx={{ bgcolor: 'transparent', fontWeight: 700, color: 'text.secondary' }}>
-              {section.title}
-            </ListSubheader>
+      {sections.map((section) => {
+        // Highlight only the most specific matching item so section index routes
+        // (e.g. /member, /admin) do not stay active on nested pages.
+        const activeTo = section.items.reduce<NavItem | null>((best, candidate) => {
+          const matches = location.pathname === candidate.to || location.pathname.startsWith(`${candidate.to}/`)
+          if (!matches) {
+            return best
           }
-        >
-          {section.items.map((item) => {
-            const selected = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
-            return (
-              <ListItem key={item.to} disablePadding sx={{ display: 'block' }}>
-                <ListItemButton
-                  component={RouterLink}
-                  to={item.to}
-                  selected={selected}
-                  sx={{
-                    mx: 1,
-                    borderRadius: 2,
-                    '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                      color: 'white',
-                      '&:hover': { bgcolor: 'primary.dark' },
-                      '& .MuiListItemIcon-root': { color: 'inherit' },
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 38, color: selected ? 'inherit' : 'text.secondary' }}>
-                    <item.icon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primary={item.label} sx={{ '& .MuiListItemText-primary': { fontSize: '0.9rem', fontWeight: 500 } }} />
-                </ListItemButton>
-              </ListItem>
-            )
-          })}
-        </List>
-      ))}
+          return best === null || candidate.to.length > best.to.length ? candidate : best
+        }, null)?.to
+        return (
+          <List
+            key={section.title}
+            subheader={
+              <ListSubheader component="div" sx={{ bgcolor: 'transparent', fontWeight: 700, color: 'text.secondary' }}>
+                {section.title}
+              </ListSubheader>
+            }
+          >
+            {section.items.map((item) => {
+              const selected = activeTo === item.to
+              return (
+                <ListItem key={item.to} disablePadding sx={{ display: 'block' }}>
+                  <ListItemButton
+                    component={RouterLink}
+                    to={item.to}
+                    selected={selected}
+                    sx={{
+                      mx: 1,
+                      borderRadius: 2,
+                      '&.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        '&:hover': { bgcolor: 'primary.dark' },
+                        '& .MuiListItemIcon-root': { color: 'inherit' },
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 38, color: selected ? 'inherit' : 'text.secondary' }}>
+                      <item.icon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} sx={{ '& .MuiListItemText-primary': { fontSize: '0.9rem', fontWeight: 500 } }} />
+                  </ListItemButton>
+                </ListItem>
+              )
+            })}
+          </List>
+        )
+      })}
     </Box>
   )
 
