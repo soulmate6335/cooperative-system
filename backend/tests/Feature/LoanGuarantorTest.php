@@ -297,4 +297,202 @@ class LoanGuarantorTest extends TestCase
         $this->assertSame('accepted', $request2->fresh()->status);
         $this->assertSame('guarantors_confirmed', $application->fresh()->status);
     }
+
+    public function test_guarantor_candidates_list_only_active_eligible_members(): void
+    {
+        $applicant = $this->loanMember();
+        $candidate = $this->loanMember();
+        $suspended = $this->loanMember('suspended');
+        $product = $this->loanProduct(['required_guarantors' => 2]);
+        $application = $this->submitApplication($this->draftApplication($applicant, $product));
+
+        $this->actingAs($applicant->user, 'sanctum')->getJson('/api/v1/member/loans/applications/'.$application->id.'/guarantor-candidates')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $candidate->id)
+            ->assertJsonPath('data.0.name', $candidate->user->name);
+    }
+
+    public function test_guarantor_candidates_exclude_already_requested_and_exposed_members(): void
+    {
+        $applicant = $this->loanMember();
+        $requested = $this->loanMember();
+        $exposed = $this->loanMember();
+        $available = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 3]);
+        $application = $this->submitApplication($this->draftApplication($applicant, $product));
+
+        app(LoanGuarantorService::class)->request($application, $applicant, $requested->id);
+
+        // $exposed carries an active obligation from another member's loan.
+        $otherApplicant = $this->loanMember();
+        $otherProduct = $this->loanProduct(['required_guarantors' => 1]);
+        $otherApplication = $this->submitApplication($this->draftApplication($otherApplicant, $otherProduct));
+        $otherRequest = app(LoanGuarantorService::class)->request($otherApplication, $otherApplicant, $exposed->id);
+        $this->acceptGuarantor($otherRequest);
+
+        $response = $this->actingAs($applicant->user, 'sanctum')->getJson('/api/v1/member/loans/applications/'.$application->id.'/guarantor-candidates')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+
+        $ids = array_column($response->json('data'), 'id');
+        $this->assertContains($available->id, $ids);
+        $this->assertContains($otherApplicant->id, $ids);
+        $this->assertNotContains($requested->id, $ids);
+        $this->assertNotContains($exposed->id, $ids);
+        $this->assertNotContains($applicant->id, $ids);
+    }
+
+    public function test_guarantor_candidates_support_searching_by_member_name(): void
+    {
+        $applicant = $this->loanMember();
+        $alice = $this->loanMember();
+        $bob = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 2]);
+        $application = $this->submitApplication($this->draftApplication($applicant, $product));
+
+        $this->actingAs($applicant->user, 'sanctum')->getJson('/api/v1/member/loans/applications/'.$application->id.'/guarantor-candidates?search='.urlencode($alice->user->name))
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $alice->id);
+    }
+
+    public function test_a_non_owner_cannot_list_guarantor_candidates(): void
+    {
+        $applicant = $this->loanMember();
+        $other = $this->loanMember();
+        $product = $this->loanProduct();
+        $application = $this->submitApplication($this->draftApplication($applicant, $product));
+
+        $this->actingAs($other->user, 'sanctum')->getJson('/api/v1/member/loans/applications/'.$application->id.'/guarantor-candidates')
+            ->assertForbidden();
+    }
+
+    public function test_guarantor_request_list_returns_application_details(): void
+    {
+        $applicant = $this->loanMember();
+        $guarantor = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        [, $request] = $this->submittedWithGuarantorRequest($applicant, $product, $guarantor);
+
+        $this->actingAs($guarantor->user, 'sanctum')->getJson('/api/v1/member/guarantor-requests')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $request->id)
+            ->assertJsonPath('data.0.application.application_number', $request->application->application_number)
+            ->assertJsonPath('data.0.application.amount_requested_minor', $request->application->amount_requested_minor)
+            ->assertJsonPath('data.0.application.loan_product.id', $product->id)
+            ->assertJsonPath('data.0.application.member.member_number', $applicant->member_number)
+            ->assertJsonPath('data.0.application.member.name', $applicant->user->name);
+    }
+
+    public function test_an_already_accepted_request_cannot_be_accepted_again(): void
+    {
+        $applicant = $this->loanMember();
+        $guarantor = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        [, $request] = $this->submittedWithGuarantorRequest($applicant, $product, $guarantor);
+
+        $this->acceptGuarantor($request);
+        $this->assertSame('accepted', $request->fresh()->status);
+
+        $this->actingAs($guarantor->user, 'sanctum')->postJson('/api/v1/member/guarantor-requests/'.$request->id.'/accept')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('guarantor');
+
+        $this->assertSame('accepted', $request->fresh()->status);
+    }
+
+    public function test_a_declined_request_cannot_be_changed_back_to_accepted(): void
+    {
+        $applicant = $this->loanMember();
+        $guarantor = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        [, $request] = $this->submittedWithGuarantorRequest($applicant, $product, $guarantor);
+
+        $this->actingAs($guarantor->user, 'sanctum')->postJson('/api/v1/member/guarantor-requests/'.$request->id.'/decline')
+            ->assertOk();
+
+        $this->assertSame('declined', $request->fresh()->status);
+        $this->assertNotNull($request->fresh()->responded_at);
+
+        $this->actingAs($guarantor->user, 'sanctum')->postJson('/api/v1/member/guarantor-requests/'.$request->id.'/accept')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('guarantor');
+
+        $this->assertSame('declined', $request->fresh()->status);
+    }
+
+    public function test_partial_acceptance_does_not_advance_the_application(): void
+    {
+        $applicant = $this->loanMember();
+        $g1 = $this->loanMember();
+        $g2 = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 2]);
+        $application = $this->submitApplication($this->draftApplication($applicant, $product));
+
+        $request1 = app(LoanGuarantorService::class)->request($application, $applicant, $g1->id);
+        $this->acceptGuarantor($request1);
+
+        $this->assertSame('awaiting_guarantors', $application->fresh()->status);
+    }
+
+    public function test_the_applicant_cannot_accept_a_guarantee_request_on_their_own_application(): void
+    {
+        $applicant = $this->loanMember();
+        $guarantor = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        [, $request] = $this->submittedWithGuarantorRequest($applicant, $product, $guarantor);
+
+        $this->actingAs($applicant->user, 'sanctum')->postJson('/api/v1/member/guarantor-requests/'.$request->id.'/accept')
+            ->assertForbidden();
+    }
+
+    public function test_guarantee_exposure_ends_when_the_application_reaches_a_terminal_state(): void
+    {
+        $applicantA = $this->loanMember();
+        $applicantB = $this->loanMember();
+        $guarantor = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $admin = $this->userWithRole('admin');
+
+        $applicationA = $this->submitApplication($this->draftApplication($applicantA, $product));
+        $requestA = app(LoanGuarantorService::class)->request($applicationA, $applicantA, $guarantor->id);
+        $this->acceptGuarantor($requestA);
+        $this->assertSame('guarantors_confirmed', $applicationA->fresh()->status);
+
+        // The admin cancels application A; the guarantor's exposure is released.
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/loans/applications/'.$applicationA->id.'/cancel', ['reason' => 'Administrative cancellation'])
+            ->assertOk();
+        $this->assertSame('cancelled', $applicationA->fresh()->status);
+
+        $applicationB = $this->submitApplication($this->draftApplication($applicantB, $product));
+        $requestB = app(LoanGuarantorService::class)->request($applicationB, $applicantB, $guarantor->id);
+        $this->acceptGuarantor($requestB);
+
+        $this->assertSame('accepted', $requestB->fresh()->status);
+        $this->assertSame('guarantors_confirmed', $applicationB->fresh()->status);
+    }
+
+    public function test_exposure_is_revalidated_at_the_time_of_acceptance(): void
+    {
+        $applicantB = $this->loanMember();
+        $applicantA = $this->loanMember();
+        $guarantor = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+
+        $applicationB = $this->submitApplication($this->draftApplication($applicantB, $product));
+        $requestB = app(LoanGuarantorService::class)->request($applicationB, $applicantB, $guarantor->id);
+
+        // Between the request and the response, the guarantor accepts another
+        // obligation, so the pending request must now fail the exposure rule.
+        $applicationA = $this->submitApplication($this->draftApplication($applicantA, $product));
+        $requestA = app(LoanGuarantorService::class)->request($applicationA, $applicantA, $guarantor->id);
+        $this->acceptGuarantor($requestA);
+
+        $this->actingAs($guarantor->user, 'sanctum')->postJson('/api/v1/member/guarantor-requests/'.$requestB->id.'/accept')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('guarantor');
+
+        $this->assertSame('pending', $requestB->fresh()->status);
+    }
 }

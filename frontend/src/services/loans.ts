@@ -11,6 +11,7 @@ import type {
   LoanGuarantor,
   LoanInvestigation,
   LoanProduct,
+  Member,
   PageResult,
 } from '../types'
 
@@ -128,6 +129,13 @@ export async function requestGuarantor(applicationId: string, guarantorMemberId:
   return unwrap<LoanGuarantor>(api.post(`/member/loans/applications/${applicationId}/guarantors`, {
     guarantor_member_id: guarantorMemberId,
   }))
+}
+
+export async function listGuarantorCandidates(
+  applicationId: string,
+  filters: { search?: string; per_page?: number } = {},
+): Promise<PageResult<Member>> {
+  return unwrapPage<Member>(api.get(`/member/loans/applications/${applicationId}/guarantor-candidates`, { params: filters }))
 }
 
 export async function cancelGuarantorRequest(applicationId: string, guarantorId: string): Promise<LoanGuarantor> {

@@ -103,7 +103,7 @@ class LoanApplicationController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Loan application retrieved successfully.',
-            'data' => LoanApplicationResource::make($application->load('member', 'product', 'meeting', 'guarantors', 'investigation', 'decision', 'loan')),
+            'data' => LoanApplicationResource::make($application->load('member', 'product', 'meeting', 'guarantors.guarantorMember.user', 'investigation', 'decision', 'loan')),
         ]);
     }
 

@@ -34,8 +34,10 @@ type ActionTarget = { id: string; applicationNumber: string } | null
 
 export function GuarantorRequestsPage(): ReactNode {
   const queryClient = useQueryClient()
-  const [respondTarget, setRespondTarget] = useState<ActionTarget>(null)
+  const [acceptTarget, setAcceptTarget] = useState<ActionTarget>(null)
+  const [declineTarget, setDeclineTarget] = useState<ActionTarget>(null)
   const [responseNote, setResponseNote] = useState('')
+  const [declineReason, setDeclineReason] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const { data: result, isLoading, error: queryError, refetch } = useQuery({
@@ -43,13 +45,20 @@ export function GuarantorRequestsPage(): ReactNode {
     queryFn: () => listGuarantorRequests({ per_page: 50 }),
   })
 
+  const invalidate = (): void => {
+    void queryClient.invalidateQueries({ queryKey: ['member', 'guarantor-requests'] })
+  }
+
   const respondMutation = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'accept' | 'decline' }) => respondToGuarantorRequest(id, action, responseNote || undefined),
+    mutationFn: ({ id, action, note }: { id: string; action: 'accept' | 'decline'; note?: string }) =>
+      respondToGuarantorRequest(id, action, note),
     onSuccess: () => {
-      setRespondTarget(null)
+      setAcceptTarget(null)
+      setDeclineTarget(null)
       setResponseNote('')
+      setDeclineReason('')
       setError(null)
-      void queryClient.invalidateQueries({ queryKey: ['member', 'guarantor-requests'] })
+      invalidate()
     },
     onError: (err) => setError(getErrorMessage(err, 'Failed to update the guarantor request.')),
   })
@@ -57,7 +66,7 @@ export function GuarantorRequestsPage(): ReactNode {
   if (isLoading) {
     return (
       <SimplePageContainer title="Guarantor Requests" subtitle="Respond to requests to guarantee a member's loan">
-        <TableSkeleton rows={5} columns={5} />
+        <TableSkeleton rows={5} columns={7} />
       </SimplePageContainer>
     )
   }
@@ -96,6 +105,8 @@ export function GuarantorRequestsPage(): ReactNode {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell>Applicant</TableCell>
+                    <TableCell>Product</TableCell>
                     <TableCell>Application #</TableCell>
                     <TableCell align="right">Amount</TableCell>
                     <TableCell>Requested</TableCell>
@@ -108,6 +119,19 @@ export function GuarantorRequestsPage(): ReactNode {
                     <TableRow key={request.id} hover>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {request.application?.member?.name ?? 'Unknown member'}
+                        </Typography>
+                        {request.application?.member?.member_number ? (
+                          <Typography variant="caption" color="text.secondary">
+                            Member {request.application.member.member_number}
+                          </Typography>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{request.application?.loan_product?.name ?? '—'}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
                           {request.application?.application_number ?? '—'}
                         </Typography>
                       </TableCell>
@@ -125,6 +149,11 @@ export function GuarantorRequestsPage(): ReactNode {
                       </TableCell>
                       <TableCell>
                         <StatusPill status={request.status} />
+                        {request.status !== 'pending' && request.responded_at ? (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            Responded {formatDate(request.responded_at)}
+                          </Typography>
+                        ) : null}
                       </TableCell>
                       <TableCell align="center">
                         {request.status === 'pending' ? (
@@ -134,7 +163,7 @@ export function GuarantorRequestsPage(): ReactNode {
                               color="success"
                               variant="outlined"
                               disabled={respondMutation.isPending}
-                              onClick={() => setRespondTarget({ id: request.id, applicationNumber: request.application?.application_number ?? '' })}
+                              onClick={() => setAcceptTarget({ id: request.id, applicationNumber: request.application?.application_number ?? '' })}
                             >
                               Accept
                             </Button>
@@ -142,9 +171,7 @@ export function GuarantorRequestsPage(): ReactNode {
                               size="small"
                               color="inherit"
                               disabled={respondMutation.isPending}
-                              onClick={() =>
-                                respondMutation.mutate({ id: request.id, action: 'decline' })
-                              }
+                              onClick={() => setDeclineTarget({ id: request.id, applicationNumber: request.application?.application_number ?? '' })}
                             >
                               Decline
                             </Button>
@@ -164,12 +191,12 @@ export function GuarantorRequestsPage(): ReactNode {
         </Card>
       )}
 
-      <Dialog open={respondTarget !== null} onClose={() => setRespondTarget(null)} maxWidth="xs" fullWidth>
+      <Dialog key="accept" open={acceptTarget !== null} onClose={() => setAcceptTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Accept guarantor request</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            You are accepting the request to guarantee loan{' '}
-            {respondTarget?.applicationNumber ? `application ${respondTarget.applicationNumber}` : 'application'}.
+            You are accepting the request to guarantee{' '}
+            {acceptTarget?.applicationNumber ? `loan application ${acceptTarget.applicationNumber}` : 'a loan application'}.
             This means you will be recorded as a guarantor.
           </DialogContentText>
           <TextField
@@ -183,16 +210,55 @@ export function GuarantorRequestsPage(): ReactNode {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRespondTarget(null)} disabled={respondMutation.isPending}>
+          <Button onClick={() => setAcceptTarget(null)} disabled={respondMutation.isPending}>
             Cancel
           </Button>
           <Button
             color="success"
             variant="contained"
             disabled={respondMutation.isPending}
-            onClick={() => respondTarget && respondMutation.mutate({ id: respondTarget.id, action: 'accept' })}
+            onClick={() =>
+              acceptTarget &&
+              respondMutation.mutate({ id: acceptTarget.id, action: 'accept', note: responseNote || undefined })
+            }
           >
             {respondMutation.isPending ? 'Updating...' : 'Accept request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog key="decline" open={declineTarget !== null} onClose={() => setDeclineTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Decline guarantor request</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            You are declining the request to guarantee{' '}
+            {declineTarget?.applicationNumber ? `loan application ${declineTarget.applicationNumber}` : 'a loan application'}.
+            The applicant will be able to request a replacement guarantor.
+          </DialogContentText>
+          <TextField
+            label="Reason (optional)"
+            value={declineReason}
+            onChange={(e) => setDeclineReason(e.target.value)}
+            fullWidth
+            multiline
+            minRows={2}
+            size="small"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeclineTarget(null)} disabled={respondMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={respondMutation.isPending}
+            onClick={() =>
+              declineTarget &&
+              respondMutation.mutate({ id: declineTarget.id, action: 'decline', note: declineReason || undefined })
+            }
+          >
+            {respondMutation.isPending ? 'Updating...' : 'Decline request'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -44,6 +44,8 @@ export interface Member {
   joined_at: string | null
   status: string
   membership_type: string | null
+  /** Present when the API eager-loads the member's user (e.g. guarantor candidates). */
+  name?: string | null
 }
 
 export type MemberApplicationStatus = 'pending' | 'approved' | 'rejected'

@@ -63,6 +63,7 @@ export function AppLayout(): ReactNode {
       { label: 'Loan Eligibility', to: '/member/eligibility', icon: FactCheckIcon },
       { label: 'Loan Products', to: '/member/loans/products', icon: ListAltIcon },
       { label: 'My Applications', to: '/member/loans/applications', icon: RequestQuoteIcon },
+      { label: 'Guarantee Requests', to: '/member/guarantor-requests', icon: GroupIcon },
       { label: 'Savings & Contributions', to: '/member/accounts', icon: SavingsIcon },
       { label: 'Profile', to: '/member/profile', icon: PersonIcon },
     ]

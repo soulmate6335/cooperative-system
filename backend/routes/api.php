@@ -55,6 +55,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('member/loans/applications/{application}/submit', [LoanApplicationController::class, 'submit'])->middleware('throttle:loan_submission');
         Route::post('member/loans/applications/{application}/cancel', [LoanApplicationController::class, 'cancel']);
         Route::post('member/loans/applications/{application}/guarantors', [LoanGuarantorController::class, 'store']);
+        Route::get('member/loans/applications/{application}/guarantor-candidates', [LoanGuarantorController::class, 'candidates']);
         Route::post('member/loans/applications/{application}/guarantors/{guarantor}/cancel', [LoanGuarantorController::class, 'cancel']);
 
         // Guarantor self-service.

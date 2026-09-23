@@ -12,6 +12,7 @@ class LoanGuarantorResource extends JsonResource
         return [
             'id' => $this->id,
             'loan_application_id' => $this->loan_application_id,
+            'application' => LoanApplicationResource::make($this->whenLoaded('application')),
             'guarantor_member' => MemberResource::make($this->whenLoaded('guarantorMember')),
             'status' => $this->status,
             'requested_at' => $this->requested_at?->toISOString(),

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CancelGuarantorRequest;
+use App\Http\Requests\ListGuarantorCandidatesRequest;
 use App\Http\Requests\RespondGuarantorRequest;
 use App\Http\Requests\StoreLoanGuarantorRequest;
 use App\Http\Resources\LoanGuarantorResource;
+use App\Http\Resources\MemberResource;
 use App\Models\LoanApplication;
 use App\Models\LoanGuarantor;
 use App\Services\LoanGuarantorService;
@@ -33,6 +35,27 @@ class LoanGuarantorController extends Controller
         ], 201);
     }
 
+    public function candidates(ListGuarantorCandidatesRequest $request, LoanApplication $application): JsonResponse
+    {
+        $candidates = $this->service->candidates(
+            $application,
+            $request->filled('search') ? $request->string('search')->toString() : null,
+            $request->integer('per_page', 20),
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Guarantor candidates retrieved successfully.',
+            'data' => MemberResource::collection($candidates)->resolve($request),
+            'meta' => [
+                'current_page' => $candidates->currentPage(),
+                'per_page' => $candidates->perPage(),
+                'total' => $candidates->total(),
+                'last_page' => $candidates->lastPage(),
+            ],
+        ]);
+    }
+
     public function requests(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -51,7 +74,7 @@ class LoanGuarantorController extends Controller
         }
 
         $requests = $member->loanGuarantees()
-            ->with('application.member', 'application.product')
+            ->with('application.member.user', 'application.product')
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 20));
 

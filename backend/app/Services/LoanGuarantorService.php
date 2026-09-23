@@ -6,6 +6,7 @@ use App\Models\LoanApplication;
 use App\Models\LoanGuarantor;
 use App\Models\Member;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -40,6 +41,38 @@ class LoanGuarantorService
                     ->orWhereHas('application.loan', fn ($loan) => $loan->whereIn('status', self::ACTIVE_LOAN_STATUSES));
             })
             ->exists();
+    }
+
+    /**
+     * Candidate pool for the applicant's guarantor picker. Reuses the same
+     * server-side eligibility rules as request(): active members, excluding
+     * the applicant, members already requested on this application and
+     * members carrying an active guarantee obligation elsewhere.
+     */
+    public function candidates(LoanApplication $application, ?string $search = null, int $perPage = 20): LengthAwarePaginator
+    {
+        if (! in_array($application->status, self::REQUESTABLE_STATES, true)) {
+            throw ValidationException::withMessages(['application' => 'Guarantor requests are not allowed while the application is in this state.']);
+        }
+
+        return Member::query()
+            ->with('user')
+            ->where('status', 'active')
+            ->where('id', '!=', $application->member_id)
+            ->whereDoesntHave('loanGuarantees', fn ($query) => $query->where('loan_application_id', $application->id))
+            ->whereDoesntHave('loanGuarantees', function ($query): void {
+                $query->where('status', 'accepted')
+                    ->where(function ($exposure): void {
+                        $exposure->whereHas('application', fn ($application) => $application->whereIn('status', self::OPEN_APPLICATION_STATUSES))
+                            ->orWhereHas('application.loan', fn ($loan) => $loan->whereIn('status', self::ACTIVE_LOAN_STATUSES));
+                    });
+            })
+            ->when($search !== null && $search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
+                $query->where('member_number', 'ilike', "%{$search}%")
+                    ->orWhereHas('user', fn ($user) => $user->where('name', 'ilike', "%{$search}%"));
+            }))
+            ->orderBy('created_at')
+            ->paginate($perPage);
     }
 
     public function request(LoanApplication $application, Member $applicant, string $guarantorMemberId): LoanGuarantor
