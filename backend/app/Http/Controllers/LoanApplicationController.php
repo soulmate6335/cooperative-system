@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CancelLoanApplicationRequest;
 use App\Http\Requests\StoreLoanApplicationRequest;
 use App\Http\Requests\SubmitLoanApplicationRequest;
+use App\Http\Requests\UpdateLoanApplicationRequest;
 use App\Http\Resources\LoanApplicationResource;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
@@ -103,6 +104,17 @@ class LoanApplicationController extends Controller
             'success' => true,
             'message' => 'Loan application retrieved successfully.',
             'data' => LoanApplicationResource::make($application->load('member', 'product', 'meeting', 'guarantors', 'investigation', 'decision', 'loan')),
+        ]);
+    }
+
+    public function update(UpdateLoanApplicationRequest $request, LoanApplication $application): JsonResponse
+    {
+        $application = $this->service->updateDraft($application, $request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Loan application updated successfully.',
+            'data' => LoanApplicationResource::make($application->load('member', 'product')),
         ]);
     }
 

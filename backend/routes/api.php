@@ -51,6 +51,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('member/loans/applications', [LoanApplicationController::class, 'store'])->middleware('throttle:loan_submission');
         Route::get('member/loans/applications', [LoanApplicationController::class, 'index']);
         Route::get('member/loans/applications/{application}', [LoanApplicationController::class, 'show']);
+        Route::patch('member/loans/applications/{application}', [LoanApplicationController::class, 'update']);
         Route::post('member/loans/applications/{application}/submit', [LoanApplicationController::class, 'submit'])->middleware('throttle:loan_submission');
         Route::post('member/loans/applications/{application}/cancel', [LoanApplicationController::class, 'cancel']);
         Route::post('member/loans/applications/{application}/guarantors', [LoanGuarantorController::class, 'store']);

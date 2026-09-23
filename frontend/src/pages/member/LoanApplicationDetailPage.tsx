@@ -13,6 +13,7 @@ import ListItemText from '@mui/material/ListItemText'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import EditIcon from '@mui/icons-material/Edit'
 import FaceIcon from '@mui/icons-material/Face'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -115,15 +116,25 @@ export function LoanApplicationDetailPage(): ReactNode {
         isDraft || isCancellable ? (
           <>
             {isDraft ? (
-              <Button
-                variant="contained"
-                onClick={() => setConfirmSubmit(true)}
-                disabled={submitMutation.isPending}
-                startIcon={submitMutation.isPending ? <CircularProgress size={18} /> : <CheckCircleIcon />}
-                sx={{ textTransform: 'none' }}
-              >
-                {isDraft ? 'Submit application' : 'Re-submit'}
-              </Button>
+              <>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate(`/member/loans/applications/new?edit=${id}`)}
+                  startIcon={<EditIcon />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Edit draft
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => setConfirmSubmit(true)}
+                  disabled={submitMutation.isPending}
+                  startIcon={submitMutation.isPending ? <CircularProgress size={18} /> : <CheckCircleIcon />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  {isDraft ? 'Submit application' : 'Re-submit'}
+                </Button>
+              </>
             ) : null}
             {isCancellable ? (
               <Button
@@ -163,6 +174,20 @@ export function LoanApplicationDetailPage(): ReactNode {
                   <ListItem sx={{ px: 0 }}>
                     <ListItemText primary="Submitted" secondary={formatDate(application.submitted_at)} />
                   </ListItem>
+                  {application.committee_meeting ? (
+                    <ListItem sx={{ px: 0 }}>
+                      <ListItemText
+                        primary="Committee meeting"
+                        secondary={
+                          application.committee_meeting.meeting_date
+                            ? `${formatDate(application.committee_meeting.meeting_date)} · ${
+                                application.committee_meeting.meeting_type
+                              }`
+                            : '—'
+                        }
+                      />
+                    </ListItem>
+                  ) : null}
                   <ListItem sx={{ px: 0 }}>
                     <ListItemText primary="Purpose" secondary={application.purpose ?? '—'} />
                   </ListItem>
@@ -203,6 +228,12 @@ export function LoanApplicationDetailPage(): ReactNode {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Guarantors confirm your character and repayment capacity. Only members in good standing can guarantee.
               </Typography>
+              {application.loan_product?.required_guarantors != null ? (
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                  {guarantors.filter((guarantor) => guarantor.status === 'accepted').length} of{' '}
+                  {application.loan_product.required_guarantors} required guarantors accepted
+                </Typography>
+              ) : null}
               {guarantors.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   No guarantors have been added to this application yet.

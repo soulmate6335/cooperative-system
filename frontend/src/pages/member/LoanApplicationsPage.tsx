@@ -74,6 +74,11 @@ export function LoanApplicationsPage(): ReactNode {
                   <Typography variant="caption" color="text.secondary">
                     Submitted {formatDate(application.submitted_at)}
                   </Typography>
+                  {application.committee_meeting?.meeting_date ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      Committee meeting {formatDate(application.committee_meeting.meeting_date)}
+                    </Typography>
+                  ) : null}
                 </Box>
                 <Stack direction="row" spacing={1}>
                   <StatusPill status={application.status} />

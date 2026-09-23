@@ -110,6 +110,10 @@ export async function createLoanApplication(payload: CreateLoanApplicationPayloa
   return unwrap<LoanApplication>(api.post('/member/loans/applications', payload))
 }
 
+export async function updateLoanApplication(id: string, payload: CreateLoanApplicationPayload): Promise<LoanApplication> {
+  return unwrap<LoanApplication>(api.patch(`/member/loans/applications/${id}`, payload))
+}
+
 export async function submitLoanApplication(id: string): Promise<LoanApplication> {
   return unwrap<LoanApplication>(api.post(`/member/loans/applications/${id}/submit`))
 }

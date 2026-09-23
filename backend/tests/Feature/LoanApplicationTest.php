@@ -295,4 +295,193 @@ class LoanApplicationTest extends TestCase
         $this->expectException(\LogicException::class);
         $application->delete();
     }
+
+    public function test_inactive_member_cannot_create_an_application(): void
+    {
+        $member = $this->loanMember('inactive');
+        $product = $this->loanProduct();
+
+        $this->actingAs($member->user, 'sanctum')->postJson('/api/v1/member/loans/applications', [
+            'loan_product_id' => $product->id,
+            'amount_requested_minor' => 500000,
+            'purpose' => 'School fees',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('member');
+    }
+
+    public function test_suspended_member_cannot_create_an_application(): void
+    {
+        $member = $this->loanMember('suspended');
+        $product = $this->loanProduct();
+
+        $this->actingAs($member->user, 'sanctum')->postJson('/api/v1/member/loans/applications', [
+            'loan_product_id' => $product->id,
+            'amount_requested_minor' => 500000,
+            'purpose' => 'School fees',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('member');
+    }
+
+    public function test_member_can_list_their_own_loan_applications(): void
+    {
+        $member = $this->loanMember();
+        $this->draftApplication($member, $this->loanProduct());
+
+        $this->actingAs($member->user, 'sanctum')->getJson('/api/v1/member/loans/applications')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonCount(1, 'data');
+    }
+
+    public function test_member_cannot_view_another_members_application(): void
+    {
+        $member = $this->loanMember();
+        $other = $this->loanMember();
+        $application = $this->draftApplication($member, $this->loanProduct());
+
+        $this->actingAs($other->user, 'sanctum')->getJson('/api/v1/member/loans/applications/'.$application->id)
+            ->assertForbidden();
+    }
+
+    public function test_member_can_update_their_own_draft(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['minimum_amount_minor' => 100000, 'maximum_amount_minor' => 2000000]);
+        $application = $this->draftApplication($member, $product, 500000);
+
+        $this->actingAs($member->user, 'sanctum')->patchJson('/api/v1/member/loans/applications/'.$application->id, [
+            'amount_requested_minor' => 750000,
+            'purpose' => 'Tuition fees',
+        ])->assertOk()
+            ->assertJsonPath('data.amount_requested_minor', 750000)
+            ->assertJsonPath('data.purpose', 'Tuition fees')
+            ->assertJsonPath('data.status', 'draft');
+
+        $this->assertDatabaseHas('loan_applications', ['id' => $application->id, 'amount_requested_minor' => 750000, 'purpose' => 'Tuition fees']);
+    }
+
+    public function test_member_can_switch_the_product_of_their_own_draft(): void
+    {
+        $member = $this->loanMember();
+        $first = $this->loanProduct();
+        $second = $this->loanProduct();
+        $application = $this->draftApplication($member, $first);
+
+        $this->actingAs($member->user, 'sanctum')->patchJson('/api/v1/member/loans/applications/'.$application->id, [
+            'loan_product_id' => $second->id,
+        ])->assertOk()
+            ->assertJsonPath('data.loan_product.id', $second->id);
+
+        $this->assertDatabaseHas('loan_applications', ['id' => $application->id, 'loan_product_id' => $second->id]);
+    }
+
+    public function test_a_member_cannot_update_another_members_draft(): void
+    {
+        $member = $this->loanMember();
+        $other = $this->loanMember();
+        $application = $this->draftApplication($member, $this->loanProduct());
+
+        $this->actingAs($other->user, 'sanctum')->patchJson('/api/v1/member/loans/applications/'.$application->id, [
+            'amount_requested_minor' => 600000,
+        ])->assertForbidden();
+    }
+
+    public function test_a_submitted_application_cannot_be_updated(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct();
+        $application = $this->submitApplication($this->draftApplication($member, $product));
+
+        $this->actingAs($member->user, 'sanctum')->patchJson('/api/v1/member/loans/applications/'.$application->id, [
+            'purpose' => 'Changed after submission',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('application');
+
+        $this->assertDatabaseHas('loan_applications', ['id' => $application->id, 'purpose' => 'Salary advance', 'status' => 'submitted']);
+    }
+
+    public function test_updating_a_draft_rejects_an_amount_below_the_product_minimum(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['minimum_amount_minor' => 100000]);
+        $application = $this->draftApplication($member, $product, 500000);
+
+        $this->actingAs($member->user, 'sanctum')->patchJson('/api/v1/member/loans/applications/'.$application->id, [
+            'amount_requested_minor' => 50000,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('amount_requested_minor');
+    }
+
+    public function test_updating_a_draft_rejects_an_amount_above_the_product_maximum(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['maximum_amount_minor' => 1000000]);
+        $application = $this->draftApplication($member, $product, 500000);
+
+        $this->actingAs($member->user, 'sanctum')->patchJson('/api/v1/member/loans/applications/'.$application->id, [
+            'amount_requested_minor' => 1500000,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('amount_requested_minor');
+    }
+
+    public function test_updating_a_draft_with_a_deactivated_product_is_rejected(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct();
+        $application = $this->draftApplication($member, $product);
+
+        $this->actingAs($this->userWithRole('admin'), 'sanctum')->postJson('/api/v1/admin/loan-products/'.$product->id.'/deactivate')->assertOk();
+
+        $this->actingAs($member->user, 'sanctum')->patchJson('/api/v1/member/loans/applications/'.$application->id, [
+            'loan_product_id' => $product->id,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('loan_product_id');
+    }
+
+    public function test_suspended_member_cannot_update_a_draft(): void
+    {
+        $member = $this->loanMember();
+        $application = $this->draftApplication($member, $this->loanProduct());
+
+        $member->update(['status' => 'suspended']);
+
+        $this->actingAs($member->user, 'sanctum')->patchJson('/api/v1/member/loans/applications/'.$application->id, [
+            'purpose' => 'Edited while suspended',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('member');
+    }
+
+    public function test_second_submission_is_rejected(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct();
+        $application = $this->submitApplication($this->draftApplication($member, $product));
+
+        $this->actingAs($member->user, 'sanctum')->postJson('/api/v1/member/loans/applications/'.$application->id.'/submit')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('application');
+
+        $this->assertDatabaseHas('loan_applications', ['id' => $application->id, 'status' => 'submitted']);
+    }
+
+    public function test_submission_is_blocked_when_the_amount_exceeds_the_updated_product_maximum(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['maximum_amount_minor' => 2000000]);
+        $application = $this->draftApplication($member, $product, 1500000);
+        $this->committeeMeeting();
+        $this->eligibleDecision($member, $product);
+
+        // The product bounds change after the draft was created; submission
+        // must revalidate against the current configuration.
+        $this->actingAs($this->userWithRole('admin'), 'sanctum')->patchJson('/api/v1/admin/loan-products/'.$product->id, [
+            'maximum_amount_minor' => 1000000,
+        ])->assertOk();
+
+        $this->actingAs($member->user, 'sanctum')->postJson('/api/v1/member/loans/applications/'.$application->id.'/submit')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('amount_requested_minor');
+
+        $this->assertDatabaseHas('loan_applications', ['id' => $application->id, 'status' => 'draft']);
+    }
 }

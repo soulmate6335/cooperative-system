@@ -49,6 +49,60 @@ class LoanApplicationService
         });
     }
 
+    /**
+     * A member may edit only their own draft. Status, meeting binding,
+     * guarantor state, decisions and member ownership are workflow-owned
+     * and cannot be changed through draft editing.
+     */
+    public function updateDraft(LoanApplication $application, array $data): LoanApplication
+    {
+        return DB::transaction(function () use ($application, $data): LoanApplication {
+            $application = LoanApplication::query()->lockForUpdate()->find($application->id);
+
+            if ($application->member->status !== 'active') {
+                throw ValidationException::withMessages(['member' => 'Member-driven actions are frozen until the membership is reactivated.']);
+            }
+
+            if ($application->status !== 'draft') {
+                throw ValidationException::withMessages(['application' => 'Only draft applications can be edited.']);
+            }
+
+            // Bounds are validated against the product the draft will end up
+            // on, i.e. the new product when it is switched, otherwise the
+            // currently selected one.
+            $product = $application->product;
+            $updates = [];
+
+            if (array_key_exists('loan_product_id', $data)) {
+                $product = LoanProduct::query()->find($data['loan_product_id']);
+
+                if (! $product instanceof LoanProduct || ! $product->isActive()) {
+                    throw ValidationException::withMessages(['loan_product_id' => 'The loan product must be active.']);
+                }
+
+                $updates['loan_product_id'] = $product->id;
+            }
+
+            if (array_key_exists('amount_requested_minor', $data)) {
+                $amount = (int) $data['amount_requested_minor'];
+
+                $this->assertAmountWithinProduct($product, $amount);
+
+                $updates['amount_requested_minor'] = $amount;
+            }
+
+            if (array_key_exists('purpose', $data)) {
+                $updates['purpose'] = $data['purpose'];
+            }
+
+            if ($updates !== []) {
+                $application->update($updates);
+            }
+
+            return $application->fresh();
+        });
+    }
+
     public function submit(LoanApplication $application): LoanApplication
     {
         return DB::transaction(function () use ($application): LoanApplication {

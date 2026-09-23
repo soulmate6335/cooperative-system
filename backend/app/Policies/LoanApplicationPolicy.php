@@ -19,6 +19,13 @@ class LoanApplicationPolicy
             return $user->hasPermission('loans.apply');
         }
 
+        // Members may only access their own applications. Staff roles
+        // (committee, finance, admin) with the loan review permission see
+        // the administrative view through their dedicated endpoints.
+        if ($user->hasRole('member')) {
+            return false;
+        }
+
         return $user->hasPermission('loans.view');
     }
 
@@ -31,6 +38,11 @@ class LoanApplicationPolicy
     {
         return $application->member()->where('user_id', $user->id)->exists()
             && $user->hasPermission('loans.apply');
+    }
+
+    public function update(User $user, LoanApplication $application): bool
+    {
+        return $this->submit($user, $application);
     }
 
     public function request(User $user, LoanApplication $application): bool
