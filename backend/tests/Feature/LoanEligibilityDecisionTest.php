@@ -276,8 +276,8 @@ class LoanEligibilityDecisionTest extends TestCase
         $response = $this->actingAs($member->user, 'sanctum')->postJson('/api/v1/member/loans/applications/'.$application->id.'/submit');
 
         $response->assertOk()
-            ->assertJsonPath('data.status', 'submitted')
-            ->assertNotNull($response->json('data.submitted_at'));
+            ->assertJsonPath('data.status', 'submitted');
+        $this->assertNotNull($response->json('data.submitted_at'));
     }
 
     public function test_admin_override_allows_submission_when_system_factors_are_not_met(): void
