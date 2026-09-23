@@ -16,6 +16,7 @@ class MemberResource extends JsonResource
             'joined_at' => $this->joined_at,
             'status' => $this->status,
             'membership_type' => $this->membership_type,
+            'name' => $this->whenLoaded('user', fn () => $this->user?->name ?? null),
         ];
     }
 }

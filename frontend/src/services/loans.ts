@@ -1,7 +1,10 @@
 import { api, unwrap, unwrapPage } from './api'
 
 import type {
+  EligibilityAssessment,
+  EligibilityDecision,
   EligibilityFactors,
+  EligibilityMemberSummary,
   InvestigationStatus,
   Loan,
   LoanApplication,
@@ -59,6 +62,33 @@ export async function setLoanProductActive(id: string, active: boolean): Promise
 export async function fetchEligibility(productId: string): Promise<EligibilityFactors> {
   return unwrap<EligibilityFactors>(api.get('/member/loans/eligibility', { params: { product_id: productId } }))
 }
+
+// --------------------------------------------------- admin eligibility review
+
+export interface DecideEligibilityPayload {
+  member_id: string
+  loan_product_id: string
+  status: 'eligible' | 'ineligible'
+  reason?: string | null
+}
+
+export async function listEligibilityMembers(filters: { search?: string; per_page?: number } = {}): Promise<PageResult<EligibilityMemberSummary>> {
+  return unwrapPage<EligibilityMemberSummary>(api.get('/admin/loan-eligibility/members', { params: filters }))
+}
+
+export async function fetchEligibilityAssessment(memberId: string, productId: string): Promise<EligibilityAssessment> {
+  return unwrap<EligibilityAssessment>(
+    api.get('/admin/loan-eligibility/assessments', { params: { member_id: memberId, product_id: productId } }),
+  )
+}
+
+export async function decideEligibility(
+  payload: DecideEligibilityPayload,
+): Promise<{ member_id: string; loan_product_id: string; admin_decision: EligibilityDecision }> {
+  return unwrap(api.post('/admin/loan-eligibility/decisions', payload))
+}
+
+export type { EligibilityDecision }
 
 // ------------------------------------------------------- member applications
 

@@ -34,10 +34,13 @@ class LoanApplicationController extends Controller
         $request->validate(['product_id' => ['required', 'uuid', 'exists:loan_products,id']]);
         $product = LoanProduct::query()->findOrFail($request->string('product_id'));
 
+        $factors = $this->eligibility->factorsFor($member, $product);
+        $factors['admin_decision'] = $this->eligibility->decisionSummaryFor($member, $product);
+
         return response()->json([
             'success' => true,
             'message' => 'Loan eligibility factors retrieved successfully.',
-            'data' => $this->eligibility->factorsFor($member, $product),
+            'data' => $factors,
         ]);
     }
 

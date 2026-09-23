@@ -33,6 +33,7 @@ class RolePermissionSeeder extends Seeder
             'loans.reject' => 'Reject loan applications.',
             'loans.disburse' => 'Authorize loan disbursement.',
             'loan_products.manage' => 'Create and manage loan products.',
+            'loans.eligibility.manage' => 'Review and decide member loan eligibility.',
             'committee_meetings.manage' => 'Create and manage committee meetings.',
             'notices.manage' => 'Manage notices and public content.',
             'executives.manage' => 'Manage executive profiles.',
@@ -54,6 +55,7 @@ class RolePermissionSeeder extends Seeder
             'admin' => [
                 'members.view', 'members.review', 'members.approve', 'members.reject', 'loans.view', 'loans.investigate',
                 'loans.approve', 'loans.reject', 'loans.disburse', 'notices.manage', 'loan_products.manage',
+                'loans.eligibility.manage',
                 'committee_meetings.manage',
                 'executives.manage', 'settings.manage', 'payment_methods.manage', 'payments.view', 'payments.verify',
                 'receipts.create', 'accounts.manage', 'transactions.view', 'transactions.reverse', 'reports.view',

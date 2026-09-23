@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Contracts\LoanLimitRule;
 use App\Models\FinancialAccount;
+use App\Models\LoanEligibilityDecision;
 use App\Models\LoanProduct;
 use App\Models\Member;
+use App\Models\User;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class LoanEligibilityService
@@ -93,5 +96,95 @@ class LoanEligibilityService
         if (! $factors['eligible']) {
             throw ValidationException::withMessages(['eligibility' => implode(' ', $factors['reasons'])]);
         }
+    }
+
+    // ------------------------------------------------ administrative decisions
+
+    /**
+     * The most recent administrative decision for a member + product pair,
+     * ordered by the time it was recorded. Null means the pair is awaiting
+     * administrative review (pending).
+     */
+    public function latestDecisionFor(Member $member, LoanProduct $product): ?LoanEligibilityDecision
+    {
+        return LoanEligibilityDecision::query()
+            ->with('decidedBy')
+            ->where('member_id', $member->id)
+            ->where('loan_product_id', $product->id)
+            ->orderByDesc('decided_at')
+            ->orderByDesc('created_at')
+            ->first();
+    }
+
+    /**
+     * Authoritative eligibility status for a member + product pair:
+     * 'eligible', 'ineligible' or 'pending' when no decision has been made.
+     */
+    public function currentDecisionStatusFor(Member $member, LoanProduct $product): string
+    {
+        return $this->latestDecisionFor($member, $product)?->status ?? 'pending';
+    }
+
+    /**
+     * The member-safe decision summary exposed to the member and admin APIs.
+     *
+     * @return array<string, mixed>
+     */
+    public function decisionSummaryFor(Member $member, LoanProduct $product): array
+    {
+        $decision = $this->latestDecisionFor($member, $product);
+
+        return [
+            'status' => $decision?->status ?? 'pending',
+            'decided_by' => $decision?->decidedBy !== null
+                ? ['id' => $decision->decidedBy->id, 'name' => $decision->decidedBy->name]
+                : null,
+            'reason' => $decision?->reason ?? null,
+            'decided_at' => $decision?->decided_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * Record a new administrative eligibility decision. Decisions are
+     * append-only history: each review inserts a fresh row and never
+     * mutates the underlying member or financial data.
+     */
+    public function recordDecision(
+        Member $member,
+        LoanProduct $product,
+        User $admin,
+        string $status,
+        ?string $reason = null,
+    ): LoanEligibilityDecision {
+        return DB::transaction(function () use ($member, $product, $admin, $status, $reason): LoanEligibilityDecision {
+            if ($member->user_id === $admin->id) {
+                throw ValidationException::withMessages(['member_id' => 'An administrator cannot decide their own eligibility.']);
+            }
+
+            if (! in_array($status, [LoanEligibilityDecision::ELIGIBLE, LoanEligibilityDecision::INELIGIBLE], true)) {
+                throw ValidationException::withMessages(['status' => 'The eligibility status is not supported.']);
+            }
+
+            $reason = $reason !== null ? trim($reason) : null;
+            $reason = $reason === '' ? null : $reason;
+
+            // An approval that contradicts the system assessment is an explicit
+            // administrative override and must be justified, never a silent
+            // change to the underlying membership, savings or shares data.
+            if ($status === LoanEligibilityDecision::ELIGIBLE
+                && ! $this->factorsFor($member, $product)['eligible']
+                && $reason === null) {
+                throw ValidationException::withMessages(['reason' => 'A reason is required when overriding the system eligibility assessment.']);
+            }
+
+            return LoanEligibilityDecision::create([
+                'member_id' => $member->id,
+                'loan_product_id' => $product->id,
+                'status' => $status,
+                'decided_by' => $admin->id,
+                'reason' => $reason,
+                'decided_at' => now(),
+            ]);
+        });
     }
 }

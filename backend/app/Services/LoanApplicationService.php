@@ -69,7 +69,7 @@ class LoanApplicationService
                 throw ValidationException::withMessages(['loan_product_id' => 'The selected loan product is no longer active.']);
             }
 
-            $this->eligibility->assertEligibleForSubmission($member, $product);
+            $this->assertAdminEligibilityForSubmission($member, $product);
             $this->assertAmountWithinProduct($product, $application->amount_requested_minor);
 
             $submittedAt = now();
@@ -129,6 +129,26 @@ class LoanApplicationService
 
             return $application->fresh();
         });
+    }
+
+    /**
+     * The authoritative eligibility gate (RA-ELIGIBILITY): a member may only
+     * submit an application once an administrator has explicitly granted
+     * eligibility for this product. The calculated system factors are
+     * informational only; an administrative approval (including an explicit
+     * override) is what permits entry into the application workflow.
+     */
+    private function assertAdminEligibilityForSubmission(Member $member, LoanProduct $product): void
+    {
+        $decision = $this->eligibility->currentDecisionStatusFor($member, $product);
+
+        if ($decision !== 'eligible') {
+            throw ValidationException::withMessages([
+                'eligibility' => $decision === 'pending'
+                    ? 'Your eligibility is awaiting administrative review. Please contact the cooperative office.'
+                    : 'Your eligibility has not been approved by an administrator.',
+            ]);
+        }
     }
 
     private function assertAmountWithinProduct(LoanProduct $product, int $amount): void

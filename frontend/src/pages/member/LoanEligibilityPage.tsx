@@ -202,14 +202,16 @@ export function LoanEligibilityPage(): ReactNode {
                 </CardContent>
               </Card>
 
-              <Button
-                variant="contained"
-                component={RouterLink}
-                to={`/member/loans/applications/new?product_id=${selectedProduct.id}`}
-                sx={{ textTransform: 'none', alignSelf: 'flex-start' }}
-              >
-                Apply for this loan
-              </Button>
+              {eligibilityQuery.data?.admin_decision?.status === 'eligible' ? (
+                <Button
+                  variant="contained"
+                  component={RouterLink}
+                  to={`/member/loans/applications/new?product_id=${selectedProduct.id}`}
+                  sx={{ textTransform: 'none', alignSelf: 'flex-start' }}
+                >
+                  Apply for this loan
+                </Button>
+              ) : null}
             </Stack>
           )}
         </Grid>
@@ -242,13 +244,55 @@ function TermValue({ label, value }: { label: string; value: ReactNode }): React
 }
 
 function EligibilityDetails({ factors }: { factors: EligibilityFactors }): ReactNode {
+  const decision = factors.admin_decision ?? {
+    status: 'pending' as const,
+    decided_by: null,
+    reason: null,
+    decided_at: null,
+  }
+  const canApply = decision.status === 'eligible'
+
   return (
     <Stack spacing={2}>
-      <Alert severity={factors.eligible ? 'success' : 'warning'}>
-        {factors.eligible
-          ? 'You are currently eligible to borrow from this product.'
-          : 'You are not currently eligible to borrow from this product.'}
-      </Alert>
+      {decision.status === 'pending' ? (
+        <Alert severity="info">
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Eligibility review pending
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Your eligibility has been submitted for administrative review. Once an administrator decides your
+            eligibility you will be able to apply for this product.
+          </Typography>
+        </Alert>
+      ) : decision.status === 'ineligible' ? (
+        <Alert severity="error">
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Not eligible to apply
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            An administrator has not approved your eligibility for this product.
+            {decision.reason ? <> Reason: {decision.reason}</> : ' Contact the cooperative office for more information.'}
+          </Typography>
+        </Alert>
+      ) : (
+        <Alert severity="success">
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Eligible to apply
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            An administrator has approved your eligibility for this product. You may proceed with your loan
+            application.
+          </Typography>
+        </Alert>
+      )}
+      {!canApply ? (
+        <Alert severity="info" sx={{ '& .MuiAlert-message': { width: '100%' } }}>
+          <Typography variant="body2">
+            The factors below are your current system assessment. Only an administrative eligibility decision grants
+            the right to apply.
+          </Typography>
+        </Alert>
+      ) : null}
 
       <List dense disablePadding>
         <EligibilityFactorLine

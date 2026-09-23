@@ -144,6 +144,7 @@ class LoanEligibilityTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.eligible', true)
-            ->assertJsonPath('data.minimum_membership_months', 6);
+            ->assertJsonPath('data.minimum_membership_months', 6)
+            ->assertJsonPath('data.admin_decision.status', 'pending');
     }
 }

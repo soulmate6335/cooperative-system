@@ -27,6 +27,7 @@ import { CommitteeDashboardPage } from '../pages/committee/CommitteeDashboardPag
 import { CommitteeApplicationDetailPage } from '../pages/committee/CommitteeApplicationDetailPage'
 
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
+import { AdminLoanEligibilityPage } from '../pages/admin/AdminLoanEligibilityPage'
 import { MembershipApplicationsPage } from '../pages/admin/MembershipApplicationsPage'
 import { MembershipApplicationDetailPage } from '../pages/admin/MembershipApplicationDetailPage'
 import { AdminLoanApplicationsPage } from '../pages/admin/AdminLoanApplicationsPage'
@@ -83,6 +84,7 @@ const routes: RouteObject[] = [
       { path: '/admin/membership-applications/:id', element: <RequireRoles roles={ADMIN_ROLES}><MembershipApplicationDetailPage /></RequireRoles> },
       { path: '/admin/loans/applications', element: <RequireRoles roles={ADMIN_ROLES}><AdminLoanApplicationsPage /></RequireRoles> },
       { path: '/admin/loans/applications/:id', element: <RequireRoles roles={ADMIN_ROLES}><AdminLoanApplicationDetailPage /></RequireRoles> },
+      { path: '/admin/loan-eligibility', element: <RequireRoles roles={ADMIN_ROLES}><AdminLoanEligibilityPage /></RequireRoles> },
       { path: '/admin/loan-products', element: <RequireRoles roles={ADMIN_ROLES}><LoanProductsAdminPage /></RequireRoles> },
       { path: '/admin/committee-meetings', element: <RequireRoles roles={ADMIN_ROLES}><CommitteeMeetingsPage /></RequireRoles> },
       { path: '/admin/members', element: <RequireRoles roles={ADMIN_ROLES}><MembersDirectoryPage /></RequireRoles> },

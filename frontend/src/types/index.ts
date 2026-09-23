@@ -198,6 +198,16 @@ export interface LoanApplication {
   updated_at: string
 }
 
+export type EligibilityDecisionStatus = 'pending' | 'eligible' | 'ineligible'
+
+/** Authoritative administrative decision for a member + product pair. */
+export interface EligibilityDecision {
+  status: EligibilityDecisionStatus
+  decided_by: { id: string; name: string } | null
+  reason: string | null
+  decided_at: string | null
+}
+
 export interface EligibilityFactors {
   eligible: boolean
   membership_months: number
@@ -210,6 +220,20 @@ export interface EligibilityFactors {
   maximum_amount_minor: number | null
   computed_maximum_amount_minor: number | null
   reasons: string[]
+  /** Authoritative admin decision; pending when no decision exists yet. */
+  admin_decision: EligibilityDecision
+}
+
+/** Member picker row returned by the admin eligibility review endpoints. */
+export interface EligibilityMemberSummary extends Member {
+  name: string | null
+}
+
+/** Full eligibility review payload for an administrator. */
+export interface EligibilityAssessment {
+  member: EligibilityMemberSummary
+  product: LoanProduct
+  factors: EligibilityFactors
 }
 
 export type AccountType = 'contribution' | 'savings' | 'shares'

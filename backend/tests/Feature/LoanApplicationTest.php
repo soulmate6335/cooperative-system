@@ -103,7 +103,7 @@ class LoanApplicationTest extends TestCase
         ])->assertCreated();
     }
 
-    public function test_submission_requires_eligible_membership_length(): void
+    public function test_submission_is_blocked_while_eligibility_decision_is_pending(): void
     {
         $this->travelTo('2026-06-01 12:00:00');
         $member = $this->loanMemberJoinedAt(now()->subMonths(5)->subDays(29));
@@ -111,7 +111,23 @@ class LoanApplicationTest extends TestCase
         $application = $this->draftApplication($member, $product);
         $this->committeeMeeting();
 
-        $this->actingAs($member->user, 'sanctum')->postJson('/api/v1/member/loans/applications/'.$application->id.'/submit')->assertUnprocessable();
+        $this->actingAs($member->user, 'sanctum')->postJson('/api/v1/member/loans/applications/'.$application->id.'/submit')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('eligibility');
+    }
+
+    public function test_submission_is_blocked_while_administratively_ineligible(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct();
+        $application = $this->draftApplication($member, $product);
+        $this->committeeMeeting();
+        $this->eligibleDecision($member, $product, 'ineligible', 'Insufficient savings history.');
+
+        $this->actingAs($member->user, 'sanctum')->postJson('/api/v1/member/loans/applications/'.$application->id.'/submit')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('eligibility');
+        $this->assertDatabaseHas('loan_applications', ['id' => $application->id, 'status' => 'draft']);
     }
 
     public function test_submission_of_a_draft_with_deactivated_product_is_blocked(): void
@@ -139,6 +155,7 @@ class LoanApplicationTest extends TestCase
 
         $soon = $this->committeeMeeting(16, 14);
         $later = $this->committeeMeeting(30, 14);
+        $this->eligibleDecision($member, $product);
 
         $application = app(LoanApplicationService::class)->submit($application);
 
@@ -153,6 +170,7 @@ class LoanApplicationTest extends TestCase
         $product = $this->loanProduct();
         $application = $this->draftApplication($member, $product);
         $this->committeeMeeting(10, 14);
+        $this->eligibleDecision($member, $product);
 
         $response = $this->actingAs($member->user, 'sanctum')->postJson('/api/v1/member/loans/applications/'.$application->id.'/submit');
 
@@ -230,6 +248,7 @@ class LoanApplicationTest extends TestCase
         $this->seedBalance($member, 'shares', 75000);
         $product = $this->loanProduct();
         $application = $this->draftApplication($member, $product);
+        $this->eligibleDecision($member, $product);
         $this->committeeMeeting();
 
         $application = app(LoanApplicationService::class)->submit($application);

@@ -80,6 +80,82 @@ function toPayload(form: ProductFormState): SaveLoanProductPayload {
   }
 }
 
+interface ProductFormErrors {
+  name?: string
+  minimum_membership_months?: string
+  minimum_amount_minor?: string
+  maximum_amount_minor?: string
+  interest_rate_basis_points?: string
+  repayment_months?: string
+  required_guarantors?: string
+}
+
+/** Parse a form string into a finite number, or null when absent/not numeric. */
+function parseNumber(value: string): number | null {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * Client-side mirror of StoreLoanProductRequest. Field errors are surfaced on
+ * the inputs so the administrator always knows why the form is not submittable.
+ */
+function validateProductForm(form: ProductFormState): ProductFormErrors {
+  const errors: ProductFormErrors = {}
+
+  if (!form.name.trim()) {
+    errors.name = 'Product name is required.'
+  }
+
+  const minimum = parseNumber(form.minimum_amount_minor)
+  if (minimum === null) {
+    errors.minimum_amount_minor = 'Enter a valid minimum amount.'
+  } else if (minimum < 0) {
+    errors.minimum_amount_minor = 'Minimum amount cannot be negative.'
+  }
+
+  const maximum = parseNumber(form.maximum_amount_minor)
+  if (maximum !== null && maximum < 0) {
+    errors.maximum_amount_minor = 'Maximum amount cannot be negative.'
+  } else if (minimum !== null && maximum !== null && maximum < minimum) {
+    errors.maximum_amount_minor = 'Maximum amount must be greater than or equal to the minimum amount.'
+  }
+
+  const interest = parseNumber(form.interest_rate_basis_points)
+  if (interest === null) {
+    errors.interest_rate_basis_points = 'Enter a valid interest rate.'
+  } else if (interest < 0) {
+    errors.interest_rate_basis_points = 'Interest rate cannot be negative.'
+  }
+
+  const membership = parseNumber(form.minimum_membership_months)
+  if (membership === null) {
+    errors.minimum_membership_months = 'Enter a valid membership period.'
+  } else if (!Number.isInteger(membership) || membership < 0) {
+    errors.minimum_membership_months = 'Use a whole number of 0 or more months.'
+  }
+
+  const repayment = parseNumber(form.repayment_months)
+  if (repayment === null) {
+    errors.repayment_months = 'Enter the repayment term in months.'
+  } else if (!Number.isInteger(repayment) || repayment < 1) {
+    errors.repayment_months = 'Repayment term must be at least 1 whole month.'
+  }
+
+  const guarantors = parseNumber(form.required_guarantors)
+  if (guarantors === null) {
+    errors.required_guarantors = 'Enter the number of required guarantors.'
+  } else if (!Number.isInteger(guarantors) || guarantors < 0) {
+    errors.required_guarantors = 'Use a whole number of 0 or more guarantors.'
+  }
+
+  return errors
+}
+
 function productToForm(product: LoanProduct): ProductFormState {
   return {
     name: product.name,
@@ -99,6 +175,7 @@ export function LoanProductsAdminPage(): ReactNode {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<LoanProduct | null>(null)
   const [form, setForm] = useState<ProductFormState>(EMPTY_FORM)
+  const [formTouched, setFormTouched] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { data: result, isLoading, error: queryError, refetch } = useQuery({
@@ -132,6 +209,7 @@ export function LoanProductsAdminPage(): ReactNode {
   const openCreate = (): void => {
     setEditing(null)
     setForm(EMPTY_FORM)
+    setFormTouched(false)
     setError(null)
     setDialogOpen(true)
   }
@@ -139,11 +217,13 @@ export function LoanProductsAdminPage(): ReactNode {
   const openEdit = (product: LoanProduct): void => {
     setEditing(product)
     setForm(productToForm(product))
+    setFormTouched(false)
     setError(null)
     setDialogOpen(true)
   }
 
   const update = (patch: Partial<ProductFormState>): void => {
+    setFormTouched(true)
     setForm((prev) => ({ ...prev, ...patch }))
   }
 
@@ -164,6 +244,11 @@ export function LoanProductsAdminPage(): ReactNode {
   }
 
   const products = result?.data ?? []
+
+  const formErrors = validateProductForm(form)
+  const isFormValid = Object.keys(formErrors).length === 0
+  const fieldError = (field: keyof ProductFormErrors): string | undefined =>
+    formTouched ? formErrors[field] : undefined
 
   return (
     <PageContainer
@@ -272,7 +357,15 @@ export function LoanProductsAdminPage(): ReactNode {
                 {error}
               </Typography>
             ) : null}
-            <TextField label="Name" value={form.name} onChange={(e) => update({ name: e.target.value })} fullWidth size="small" />
+            <TextField
+              label="Name"
+              value={form.name}
+              onChange={(e) => update({ name: e.target.value })}
+              error={Boolean(fieldError('name'))}
+              helperText={fieldError('name')}
+              fullWidth
+              size="small"
+            />
             <TextField
               label="Description"
               value={form.description}
@@ -287,9 +380,11 @@ export function LoanProductsAdminPage(): ReactNode {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Minimum amount (₦)"
-                  type="number"
                   value={form.minimum_amount_minor}
                   onChange={(e) => update({ minimum_amount_minor: e.target.value })}
+                  slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+                  error={Boolean(fieldError('minimum_amount_minor'))}
+                  helperText={fieldError('minimum_amount_minor')}
                   fullWidth
                   size="small"
                 />
@@ -297,9 +392,11 @@ export function LoanProductsAdminPage(): ReactNode {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Maximum amount (₦, optional)"
-                  type="number"
                   value={form.maximum_amount_minor}
                   onChange={(e) => update({ maximum_amount_minor: e.target.value })}
+                  slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+                  error={Boolean(fieldError('maximum_amount_minor'))}
+                  helperText={fieldError('maximum_amount_minor')}
                   fullWidth
                   size="small"
                 />
@@ -307,9 +404,11 @@ export function LoanProductsAdminPage(): ReactNode {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Interest rate (%)"
-                  type="number"
                   value={form.interest_rate_basis_points}
                   onChange={(e) => update({ interest_rate_basis_points: e.target.value })}
+                  slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+                  error={Boolean(fieldError('interest_rate_basis_points'))}
+                  helperText={fieldError('interest_rate_basis_points')}
                   fullWidth
                   size="small"
                 />
@@ -317,9 +416,11 @@ export function LoanProductsAdminPage(): ReactNode {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Minimum membership (months)"
-                  type="number"
                   value={form.minimum_membership_months}
                   onChange={(e) => update({ minimum_membership_months: e.target.value })}
+                  slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+                  error={Boolean(fieldError('minimum_membership_months'))}
+                  helperText={fieldError('minimum_membership_months')}
                   fullWidth
                   size="small"
                 />
@@ -327,9 +428,11 @@ export function LoanProductsAdminPage(): ReactNode {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Repayment term (months)"
-                  type="number"
                   value={form.repayment_months}
                   onChange={(e) => update({ repayment_months: e.target.value })}
+                  slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+                  error={Boolean(fieldError('repayment_months'))}
+                  helperText={fieldError('repayment_months')}
                   fullWidth
                   size="small"
                 />
@@ -337,9 +440,11 @@ export function LoanProductsAdminPage(): ReactNode {
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Required guarantors"
-                  type="number"
                   value={form.required_guarantors}
                   onChange={(e) => update({ required_guarantors: e.target.value })}
+                  slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+                  error={Boolean(fieldError('required_guarantors'))}
+                  helperText={fieldError('required_guarantors')}
                   fullWidth
                   size="small"
                 />
@@ -366,7 +471,7 @@ export function LoanProductsAdminPage(): ReactNode {
           <Button
             variant="contained"
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !form.name.trim() || !form.minimum_amount_minor || !form.repayment_months}
+            disabled={saveMutation.isPending || !isFormValid}
           >
             {saveMutation.isPending ? 'Saving...' : editing ? 'Save changes' : 'Create product'}
           </Button>

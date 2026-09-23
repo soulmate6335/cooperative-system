@@ -6,6 +6,7 @@ use App\Models\CommitteeMeeting;
 use App\Models\FinancialAccount;
 use App\Models\FinancialTransaction;
 use App\Models\LoanApplication;
+use App\Models\LoanEligibilityDecision;
 use App\Models\LoanGuarantor;
 use App\Models\LoanInvestigation;
 use App\Models\LoanProduct;
@@ -15,6 +16,7 @@ use App\Models\User;
 use App\Services\FinancialCoreService;
 use App\Services\LoanApplicationService;
 use App\Services\LoanDecisionService;
+use App\Services\LoanEligibilityService;
 use App\Services\LoanGuarantorService;
 use App\Services\LoanInvestigationService;
 use Illuminate\Support\Str;
@@ -111,8 +113,25 @@ trait CreatesLoanFixtures
     private function submitApplication(LoanApplication $application): LoanApplication
     {
         $this->committeeMeeting();
+        $this->eligibleDecision($application->member, $application->product);
 
         return app(LoanApplicationService::class)->submit($application);
+    }
+
+    /**
+     * Record an administrative eligibility decision for the member + product
+     * pair. Defaults to an eligible decision so application-flow fixtures can
+     * proceed through submission under the admin-authority model.
+     */
+    private function eligibleDecision(
+        Member $member,
+        LoanProduct $product,
+        string $status = 'eligible',
+        ?string $reason = null,
+    ): LoanEligibilityDecision {
+        $admin = $this->userWithRole('admin');
+
+        return app(LoanEligibilityService::class)->recordDecision($member, $product, $admin, $status, $reason);
     }
 
     private function acceptedApplication(Member $member, LoanProduct $product, int $guarantorCount): LoanApplication

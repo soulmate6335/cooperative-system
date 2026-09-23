@@ -73,6 +73,7 @@ export function AppLayout(): ReactNode {
       { label: 'Dashboard', to: '/admin', icon: DashboardIcon },
       { label: 'Member Applications', to: '/admin/membership-applications', icon: GroupIcon },
       { label: 'Loan Applications', to: '/admin/loans/applications', icon: RequestQuoteIcon },
+      { label: 'Loan Eligibility', to: '/admin/loan-eligibility', icon: FactCheckIcon },
       { label: 'Loan Products', to: '/admin/loan-products', icon: Inventory2Icon },
       { label: 'Committee Meetings', to: '/admin/committee-meetings', icon: AssignmentIndIcon },
       { label: 'Payments', to: '/admin/payments', icon: PaymentsIcon },

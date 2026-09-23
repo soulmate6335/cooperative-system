@@ -48,4 +48,9 @@ class LoanProduct extends Model
     {
         return $this->hasMany(LoanApplication::class);
     }
+
+    public function eligibilityDecisions(): HasMany
+    {
+        return $this->hasMany(LoanEligibilityDecision::class);
+    }
 }
