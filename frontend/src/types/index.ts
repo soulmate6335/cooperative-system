@@ -101,7 +101,7 @@ export interface LoanGuarantor {
   application?: LoanApplication
 }
 
-export type InvestigationStatus = 'assigned' | 'submitted'
+export type InvestigationStatus = 'assigned' | 'in_progress' | 'returned' | 'submitted'
 
 export interface LoanInvestigation {
   id: string

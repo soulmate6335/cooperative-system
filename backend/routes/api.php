@@ -66,6 +66,7 @@ Route::prefix('v1')->group(function (): void {
         // Committee investigation.
         Route::get('committee/loan-applications', [CommitteeLoanController::class, 'index']);
         Route::get('committee/loan-applications/{application}', [CommitteeLoanController::class, 'show']);
+        Route::post('committee/loan-applications/{application}/investigation/start', [CommitteeLoanController::class, 'startInvestigation']);
         Route::post('committee/loan-applications/{application}/investigation', [CommitteeLoanController::class, 'updateInvestigation']);
         Route::post('committee/loan-applications/{application}/investigation/submit', [CommitteeLoanController::class, 'submitInvestigation']);
 

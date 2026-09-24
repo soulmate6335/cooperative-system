@@ -28,7 +28,7 @@ class AdminLoanController extends Controller
     public function index(AdminListLoanApplicationsRequest $request): JsonResponse
     {
         $query = LoanApplication::query()
-            ->with('member', 'product', 'meeting', 'guarantors', 'investigation', 'decision', 'loan')
+            ->with('member.user', 'product', 'meeting', 'guarantors.guarantorMember.user', 'investigation', 'decision', 'loan')
             ->orderByDesc('created_at');
 
         if ($request->filled('status')) {
@@ -65,7 +65,7 @@ class AdminLoanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Loan application retrieved successfully.',
-            'data' => LoanApplicationResource::make($application->load('member', 'product', 'meeting', 'guarantors', 'investigation', 'decision', 'loan')),
+            'data' => LoanApplicationResource::make($application->load('member.user', 'product', 'meeting', 'guarantors.guarantorMember.user', 'investigation', 'decision', 'loan')),
         ]);
     }
 

@@ -6,6 +6,7 @@ use App\Models\LoanProduct;
 use App\Models\Member;
 use App\Models\Role;
 use App\Services\LoanDecisionService;
+use App\Services\LoanGuarantorService;
 use App\Services\LoanProductService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -360,5 +361,329 @@ class LoanInvestigationDecisionTest extends TestCase
         $this->approveApplication($application, $this->userWithRole('admin'));
 
         $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_committee_queue_lists_applications_ready_for_investigation(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+
+        $this->actingAs($officer, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $application->id)
+            ->assertJsonPath('data.0.status', 'guarantors_confirmed')
+            ->assertJsonPath('data.0.member.name', $member->user->name);
+    }
+
+    public function test_committee_queue_lists_investigations_assigned_to_the_officer(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+        $this->assignedInvestigation($application, $officer);
+
+        $this->assertSame('under_investigation', $application->fresh()->status);
+
+        $this->actingAs($officer, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $application->id);
+    }
+
+    public function test_committee_queue_does_not_expose_other_officers_assignments(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officerA = $this->userWithRole('committee_officer');
+        $officerB = $this->userWithRole('committee_officer');
+        $this->assignedInvestigation($application, $officerA);
+
+        $this->actingAs($officerB, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_committee_queue_excludes_applications_without_completed_guarantors(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 2]);
+        $application = $this->submitApplication($this->draftApplication($member, $product));
+
+        $guarantor = $this->loanMember();
+        $request = app(LoanGuarantorService::class)->request($application, $member, $guarantor->id);
+        $this->acceptGuarantor($request);
+
+        $this->assertSame('awaiting_guarantors', $application->fresh()->status);
+
+        $this->actingAs($this->userWithRole('committee_officer'), 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_committee_queue_excludes_terminal_applications(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+        $this->assignedInvestigation($application, $officer);
+
+        $this->actingAs($this->userWithRole('admin'), 'sanctum')
+            ->postJson('/api/v1/admin/loans/applications/'.$application->id.'/cancel', ['reason' => 'Duplicated request.'])
+            ->assertOk();
+
+        $this->assertSame('cancelled', $application->fresh()->status);
+
+        $this->actingAs($officer, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_committee_queue_excludes_confirmed_applications_of_suspended_members(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+
+        $member->update(['status' => 'suspended']);
+
+        $this->actingAs($officer, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_committee_queue_requires_an_associated_committee_meeting(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+
+        $application->update(['committee_meeting_id' => null]);
+        $application->refresh();
+
+        $this->actingAs($officer, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_non_committee_members_cannot_access_the_committee_queue(): void
+    {
+        $member = $this->loanMember();
+
+        $this->actingAs($member->user, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications')
+            ->assertForbidden();
+    }
+
+    public function test_the_applicant_cannot_use_committee_endpoints(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+
+        $this->actingAs($member->user, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications/'.$application->id)
+            ->assertForbidden();
+    }
+
+    public function test_committee_officer_can_start_an_investigation_on_a_ready_application(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+
+        $this->actingAs($officer, 'sanctum')
+            ->postJson('/api/v1/committee/loan-applications/'.$application->id.'/investigation/start')
+            ->assertCreated()
+            ->assertJsonPath('data.investigation.assigned_to', $officer->id)
+            ->assertJsonPath('data.investigation.status', 'assigned')
+            ->assertJsonPath('data.application.status', 'under_investigation');
+
+        $this->assertDatabaseHas('loan_investigations', [
+            'loan_application_id' => $application->id,
+            'assigned_to' => $officer->id,
+        ]);
+        $this->assertDatabaseHas('loan_applications', ['id' => $application->id, 'status' => 'under_investigation']);
+    }
+
+    public function test_starting_an_investigation_requires_completed_guarantors(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->submitApplication($this->draftApplication($member, $product));
+        $officer = $this->userWithRole('committee_officer');
+
+        $this->actingAs($officer, 'sanctum')
+            ->postJson('/api/v1/committee/loan-applications/'.$application->id.'/investigation/start')
+            ->assertForbidden();
+    }
+
+    public function test_starting_an_investigation_outside_review_state_is_rejected(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->submitApplication($this->draftApplication($member, $product));
+
+        $this->actingAs($this->userWithRole('admin'), 'sanctum')
+            ->postJson('/api/v1/committee/loan-applications/'.$application->id.'/investigation/start')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('application');
+    }
+
+    public function test_another_officer_cannot_start_an_investigation_already_assigned(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officerA = $this->userWithRole('committee_officer');
+        $officerB = $this->userWithRole('committee_officer');
+        $this->assignedInvestigation($application, $officerA);
+
+        $this->actingAs($officerB, 'sanctum')
+            ->postJson('/api/v1/committee/loan-applications/'.$application->id.'/investigation/start')
+            ->assertForbidden();
+    }
+
+    public function test_the_assigned_investigator_can_view_the_application(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+        $this->assignedInvestigation($application, $officer);
+
+        $this->actingAs($officer, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications/'.$application->id)
+            ->assertOk()
+            ->assertJsonPath('data.id', $application->id)
+            ->assertJsonPath('data.member.name', $member->user->name);
+    }
+
+    public function test_an_officer_without_assignment_cannot_view_a_private_application(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officerA = $this->userWithRole('committee_officer');
+        $officerB = $this->userWithRole('committee_officer');
+        $this->assignedInvestigation($application, $officerA);
+
+        $this->actingAs($officerB, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications/'.$application->id)
+            ->assertForbidden();
+    }
+
+    public function test_a_ready_unassigned_application_is_viewable_by_any_committee_officer(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+
+        $this->actingAs($officer, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications/'.$application->id)
+            ->assertOk()
+            ->assertJsonPath('data.status', 'guarantors_confirmed');
+    }
+
+    public function test_committee_officer_cannot_modify_the_application(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+
+        $this->actingAs($officer, 'sanctum')
+            ->patchJson('/api/v1/member/loans/applications/'.$application->id, ['amount_requested_minor' => 900000])
+            ->assertForbidden();
+    }
+
+    public function test_committee_officer_cannot_accept_a_guarantee_request(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 2]);
+        $application = $this->acceptedApplication($member, $product, 1);
+        $guarantor = $this->loanMember();
+        $request = app(LoanGuarantorService::class)->request($application, $member, $guarantor->id);
+        $officer = $this->userWithRole('committee_officer');
+
+        $this->actingAs($officer, 'sanctum')
+            ->postJson('/api/v1/member/guarantor-requests/'.$request->id.'/accept')
+            ->assertForbidden();
+    }
+
+    public function test_a_submitted_investigation_cannot_be_silently_edited(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+        $this->submittedInvestigation($application, $officer);
+
+        $this->actingAs($officer, 'sanctum')
+            ->postJson('/api/v1/committee/loan-applications/'.$application->id.'/investigation', ['member_findings' => 'Silent rewrite after submission.'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('investigation');
+    }
+
+    public function test_duplicate_investigation_submission_is_rejected(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+        $this->submittedInvestigation($application, $officer);
+
+        $this->actingAs($officer, 'sanctum')
+            ->postJson('/api/v1/committee/loan-applications/'.$application->id.'/investigation/submit', ['recommendation' => 'Recommend again.'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('investigation');
+    }
+
+    public function test_submitting_a_recommendation_creates_no_loan_decisions_or_payments(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+
+        $this->submittedInvestigation($application, $officer);
+
+        $this->assertSame('pending_admin_decision', $application->fresh()->status);
+        $this->assertDatabaseCount('loans', 0);
+        $this->assertDatabaseCount('loan_decisions', 0);
+        $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_committee_queue_hides_investigations_already_submitted(): void
+    {
+        $member = $this->loanMember();
+        $product = $this->loanProduct(['required_guarantors' => 1]);
+        $application = $this->confirmedApplication($member, $product);
+        $officer = $this->userWithRole('committee_officer');
+
+        $this->submittedInvestigation($application, $officer);
+
+        $this->assertSame('pending_admin_decision', $application->fresh()->status);
+
+        $this->actingAs($officer, 'sanctum')
+            ->getJson('/api/v1/committee/loan-applications')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
     }
 }

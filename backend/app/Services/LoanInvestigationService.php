@@ -10,6 +10,28 @@ use Illuminate\Validation\ValidationException;
 
 class LoanInvestigationService
 {
+    /**
+     * A committee-ready application: guarantors confirmed, an active member, a
+     * bound committee meeting and no investigation opened yet. This is the
+     * authoritative eligibility rule for the open committee queue.
+     */
+    public function isReadyForCommittee(LoanApplication $application): bool
+    {
+        if ($application->status !== 'guarantors_confirmed') {
+            return false;
+        }
+
+        if ($application->member->status !== 'active') {
+            return false;
+        }
+
+        if ($application->meeting === null) {
+            return false;
+        }
+
+        return ! $application->investigation()->exists();
+    }
+
     public function assign(LoanApplication $application, string $assignedToUserId): LoanInvestigation
     {
         return DB::transaction(function () use ($application, $assignedToUserId): LoanInvestigation {

@@ -68,7 +68,7 @@ export function AppLayout(): ReactNode {
       { label: 'Profile', to: '/member/profile', icon: PersonIcon },
     ]
     const committeeItems: NavItem[] = [
-      { label: 'Assigned Applications', to: '/committee', icon: FactCheckIcon },
+      { label: 'Review Queue', to: '/committee', icon: FactCheckIcon },
     ]
     const adminItems: NavItem[] = [
       { label: 'Dashboard', to: '/admin', icon: DashboardIcon },

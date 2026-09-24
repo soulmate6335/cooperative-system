@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CommitteeListLoanApplicationsRequest;
+use App\Http\Requests\ShowCommitteeApplicationRequest;
+use App\Http\Requests\StartInvestigationRequest;
 use App\Http\Requests\SubmitInvestigationRequest;
 use App\Http\Requests\UpdateInvestigationRequest;
 use App\Http\Resources\LoanApplicationResource;
@@ -11,7 +13,6 @@ use App\Models\LoanApplication;
 use App\Models\LoanInvestigation;
 use App\Services\LoanInvestigationService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class CommitteeLoanController extends Controller
@@ -20,9 +21,25 @@ class CommitteeLoanController extends Controller
 
     public function index(CommitteeListLoanApplicationsRequest $request): JsonResponse
     {
+        $user = $request->user();
+
         $query = LoanApplication::query()
-            ->whereHas('investigation', fn ($investigation) => $investigation->where('assigned_to', $request->user()->id))
-            ->with('member', 'product', 'meeting', 'guarantors', 'investigation')
+            ->where(function ($query) use ($user): void {
+                // Actionable work already assigned to this officer...
+                $query->whereHas('investigation', fn ($investigation) => $investigation
+                    ->where('assigned_to', $user->id)
+                    ->where('status', '!=', 'submitted'))
+                    // ...plus applications ready for committee review that nobody
+                    // has claimed yet (RA-5 queue eligibility).
+                    ->orWhere(function ($openQueue): void {
+                        $openQueue->where('status', 'guarantors_confirmed')
+                            ->whereHas('member', fn ($member) => $member->where('status', 'active'))
+                            ->whereHas('meeting')
+                            ->whereDoesntHave('investigation');
+                    });
+            })
+            ->whereNotIn('status', LoanApplication::TERMINAL_STATUSES)
+            ->with('member.user', 'product', 'meeting', 'guarantors', 'investigation')
             ->orderByDesc('created_at');
 
         if ($request->filled('status')) {
@@ -33,7 +50,7 @@ class CommitteeLoanController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Assigned loan applications retrieved successfully.',
+            'message' => 'Loan applications retrieved successfully.',
             'data' => LoanApplicationResource::collection($applications)->resolve($request),
             'meta' => [
                 'current_page' => $applications->currentPage(),
@@ -44,15 +61,29 @@ class CommitteeLoanController extends Controller
         ]);
     }
 
-    public function show(LoanApplication $application): JsonResponse
+    public function show(ShowCommitteeApplicationRequest $request, LoanApplication $application): JsonResponse
     {
-        Gate::authorize('review', $application);
-
         return response()->json([
             'success' => true,
             'message' => 'Loan application retrieved successfully.',
-            'data' => LoanApplicationResource::make($application->load('member', 'product', 'meeting', 'guarantors', 'investigation')),
+            'data' => LoanApplicationResource::make($application->load('member.user', 'product', 'meeting', 'guarantors.guarantorMember.user', 'investigation')),
         ]);
+    }
+
+    public function startInvestigation(StartInvestigationRequest $request, LoanApplication $application): JsonResponse
+    {
+        $investigation = $this->service->assign($application, $request->user()->id);
+
+        $application = $application->fresh()->load('member.user', 'product', 'meeting', 'guarantors.guarantorMember.user', 'investigation');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Investigation started successfully.',
+            'data' => [
+                'investigation' => LoanInvestigationResource::make($investigation),
+                'application' => LoanApplicationResource::make($application),
+            ],
+        ], 201);
     }
 
     public function updateInvestigation(UpdateInvestigationRequest $request, LoanApplication $application): JsonResponse
@@ -72,7 +103,7 @@ class CommitteeLoanController extends Controller
         $investigation = $this->investigationOrFail($application);
         $investigation = $this->service->submit($investigation, $request->validated(), $request->user());
 
-        $application = $application->fresh()->load('member', 'product', 'meeting', 'guarantors', 'investigation');
+        $application = $application->fresh()->load('member.user', 'product', 'meeting', 'guarantors.guarantorMember.user', 'investigation');
 
         return response()->json([
             'success' => true,

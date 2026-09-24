@@ -174,6 +174,14 @@ export async function listCommitteeApplications(filters: LoanListFilters = {}): 
   return unwrapPage<LoanApplication>(api.get('/committee/loan-applications', { params: filters }))
 }
 
+export async function startInvestigation(
+  applicationId: string,
+): Promise<{ investigation: LoanInvestigation; application: LoanApplication }> {
+  return unwrap<{ investigation: LoanInvestigation; application: LoanApplication }>(
+    api.post(`/committee/loan-applications/${applicationId}/investigation/start`),
+  )
+}
+
 export async function getCommitteeApplication(id: string): Promise<LoanApplication> {
   return unwrap<LoanApplication>(api.get(`/committee/loan-applications/${id}`))
 }
