@@ -8,6 +8,7 @@ use App\Models\LoanInstallment;
 use App\Models\LoanRepaymentAllocation;
 use App\Models\Payment;
 use App\Models\User;
+use App\Notifications\PaymentVerified;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -74,6 +75,15 @@ class LoanRepaymentService
             // rolls back and nothing is posted.
             $transaction = $this->financialCore->verifyPayment($payment, $verifier);
             $this->allocate($payment, $transaction);
+
+            // Repayment verification status notification for the applicant member.
+            $payment->member->user->notify(new PaymentVerified(
+                (string) $payment->purpose,
+                (int) $payment->amount_minor,
+                (string) $payment->reference_number,
+                (string) $payment->id,
+                $payment->loan?->loan_number,
+            ));
 
             return $transaction;
         });

@@ -6,6 +6,9 @@ use App\Models\LoanApplication;
 use App\Models\LoanGuarantor;
 use App\Models\Member;
 use App\Models\User;
+use App\Notifications\GuarantorRequestAccepted;
+use App\Notifications\GuarantorRequestDeclined;
+use App\Notifications\GuarantorRequestReceived;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -120,6 +123,9 @@ class LoanGuarantorService
 
             $this->recalculateStage($application->fresh());
 
+            // New guarantor request event notification for the guarantor member.
+            $guarantor->user->notify(new GuarantorRequestReceived($application->application_number, $application->id));
+
             return $request->fresh();
         });
     }
@@ -171,6 +177,9 @@ class LoanGuarantorService
 
             $this->recalculateStage($application->fresh());
 
+            // Guarantor acceptance event notification for the applicant member.
+            $application->member->user->notify(new GuarantorRequestAccepted($application->application_number, (string) $guarantor->user->name));
+
             return $request->fresh();
         });
     }
@@ -216,6 +225,9 @@ class LoanGuarantorService
             // RA-2: a decline after confirmation reverts the application to
             // awaiting_guarantors so a replacement can be requested.
             $this->recalculateStage($application->fresh());
+
+            // Guarantor decline event notification for the applicant member.
+            $application->member->user->notify(new GuarantorRequestDeclined($application->application_number, (string) $guarantor->user->name));
 
             return $request->fresh();
         });

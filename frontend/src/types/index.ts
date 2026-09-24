@@ -395,3 +395,76 @@ export interface Payment {
   verified_by: string | null
   verified_at: string | null
 }
+
+export type NoticeStatus = 'draft' | 'published' | 'archived'
+export type NoticeVisibility = 'public' | 'members'
+
+/** Public-safe notice shape (homepage, public + member notice APIs). */
+export interface Notice {
+  id: string
+  title: string
+  excerpt: string | null
+  body: string
+  visibility: NoticeVisibility
+  publish_at: string | null
+  expires_at: string | null
+  created_at: string | null
+}
+
+/** Admin notice shape: adds lifecycle status and authorship. */
+export interface AdminNotice extends Notice {
+  status: NoticeStatus
+  created_by: string | null
+  updated_by: string | null
+  updated_at: string | null
+}
+
+/** Public executive shape (never exposes internal visibility/author fields). */
+export interface Executive {
+  id: string
+  name: string
+  position: string
+  biography: string | null
+  photo_url: string | null
+  display_order: number
+}
+
+/** Admin executive shape: adds the visibility flag and authorship. */
+export interface AdminExecutive extends Executive {
+  is_visible: boolean
+  created_by: string | null
+  updated_by: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+/** Admin-editable homepage configuration served through the public home API. */
+export interface OrganizationContent {
+  hero_title: string | null
+  hero_description: string | null
+  hero_image_url: string | null
+  introduction: string | null
+  updated_at: string | null
+}
+
+/** Aggregate payload returned by GET /public/home. */
+export interface PublicHome {
+  content: OrganizationContent | null
+  notices: Notice[]
+  executives: Executive[]
+}
+
+/** Personal notification inbox entry (scoped to the authenticated user). */
+export interface AppNotification {
+  id: string
+  type: string
+  title: string | null
+  message: string | null
+  read_at: string | null
+  created_at: string | null
+  data: {
+    reference_type: string | null
+    reference_id: string | null
+    reference: string | null
+  }
+}

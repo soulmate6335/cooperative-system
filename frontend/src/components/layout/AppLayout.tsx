@@ -22,6 +22,8 @@ import DashboardIcon from '@mui/icons-material/Dashboard'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
 import GavelIcon from '@mui/icons-material/Gavel'
 import GroupIcon from '@mui/icons-material/Group'
+import Groups2Icon from '@mui/icons-material/Groups2'
+import HomeIcon from '@mui/icons-material/Home'
 import ListAltIcon from '@mui/icons-material/ListAlt'
 import PaymentsIcon from '@mui/icons-material/Payments'
 import PersonIcon from '@mui/icons-material/Person'
@@ -29,6 +31,7 @@ import RequestQuoteIcon from '@mui/icons-material/RequestQuote'
 import SavingsIcon from '@mui/icons-material/Savings'
 import SettingsIcon from '@mui/icons-material/Settings'
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd'
+import CampaignIcon from '@mui/icons-material/Campaign'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import MenuIcon from '@mui/icons-material/Menu'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
@@ -38,6 +41,7 @@ import type { SvgIconComponent } from '@mui/icons-material'
 import { useAuth } from '../../features/auth/AuthContext'
 import { PageTransition } from '../common/PageTransition'
 import { ThemeToggle } from '../common/ThemeToggle'
+import { NotificationBell } from './NotificationBell'
 
 interface NavItem {
   label: string
@@ -68,6 +72,7 @@ export function AppLayout(): ReactNode {
       { label: 'My Loans', to: '/member/loans', icon: AccountBalanceWalletIcon },
       { label: 'Guarantee Requests', to: '/member/guarantor-requests', icon: GroupIcon },
       { label: 'Savings & Contributions', to: '/member/accounts', icon: SavingsIcon },
+      { label: 'Notices', to: '/member/notices', icon: CampaignIcon },
       { label: 'Profile', to: '/member/profile', icon: PersonIcon },
     ]
     const committeeItems: NavItem[] = [
@@ -87,6 +92,9 @@ export function AppLayout(): ReactNode {
       { label: 'Payment Methods', to: '/admin/payment-methods', icon: SettingsIcon },
       { label: 'Financial Accounts', to: '/admin/financial/accounts', icon: SavingsIcon },
       { label: 'Members', to: '/admin/members', icon: GroupIcon },
+      { label: 'Notices', to: '/admin/notices', icon: CampaignIcon },
+      { label: 'Executives', to: '/admin/executives', icon: Groups2Icon },
+      { label: 'Homepage Content', to: '/admin/home-content', icon: HomeIcon },
     ]
     const financeItems: NavItem[] = [
       { label: 'Dashboard', to: '/finance', icon: DashboardIcon },
@@ -242,6 +250,7 @@ export function AppLayout(): ReactNode {
               {user?.name ?? 'Cooperative System'}
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
+            <NotificationBell />
             <ThemeToggle />
             <Tooltip title="Account">
               <IconButton onClick={(event) => setUserMenuAnchor(event.currentTarget)} size="small" sx={{ border: '1px solid', borderColor: 'divider' }} aria-label="Account menu">

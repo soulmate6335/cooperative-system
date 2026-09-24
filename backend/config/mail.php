@@ -18,6 +18,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Notification Email Delivery
+    |--------------------------------------------------------------------------
+    |
+    | Whether notification mail should be attempted at all. The in-app database
+    | notification is the source of truth and is always delivered; email is an
+    | optional channel that is only attached when this flag is enabled, so local
+    | development never requires SMTP credentials.
+    |
+    */
+
+    'enabled' => env('MAIL_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Mailer Configurations
     |--------------------------------------------------------------------------
     |

@@ -14,6 +14,7 @@ use App\Models\FinancialTransaction;
 use App\Models\Member;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
+use App\Notifications\PaymentVerified;
 use App\Services\FinancialCoreService;
 use App\Services\LoanRepaymentService;
 use Illuminate\Http\JsonResponse;
@@ -99,6 +100,17 @@ class FinancialController extends Controller
         $transaction = $payment->purpose === 'loan_repayment'
             ? $this->repayments->verify($payment, $request->user())
             : $this->service->verifyPayment($payment, $request->user());
+
+        // Payment verification status notification for the member. Loan
+        // repayments are notified inside LoanRepaymentService::verify.
+        if ($payment->purpose !== 'loan_repayment') {
+            $payment->member->user->notify(new PaymentVerified(
+                (string) $payment->purpose,
+                (int) $payment->amount_minor,
+                (string) $payment->reference_number,
+                (string) $payment->id,
+            ));
+        }
 
         return response()->json([
             'success' => true,

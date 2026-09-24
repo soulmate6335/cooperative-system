@@ -6,6 +6,7 @@ use App\Models\CommitteeMeeting;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
 use App\Models\Member;
+use App\Notifications\LoanApplicationSubmitted;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -136,6 +137,9 @@ class LoanApplicationService
                 'savings_balance_minor' => $this->eligibility->savingsBalance($member),
                 'shares_balance_minor' => $this->eligibility->sharesBalance($member),
             ]);
+
+            // Loan application submitted event notification for the applicant.
+            $member->user->notify(new LoanApplicationSubmitted($application->application_number));
 
             return $application->fresh();
         });

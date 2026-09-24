@@ -12,11 +12,14 @@ import RequestQuoteIcon from '@mui/icons-material/RequestQuote'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import HowToRegIcon from '@mui/icons-material/HowToReg'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import { Link as RouterLink } from 'react-router-dom'
 
 import { PageContainer } from '../../components/common/PageContainer'
 import { listAdminLoanProducts } from '../../services/loans'
 import { listMemberApplications } from '../../services/membership'
 import { listAdminApplications } from '../../services/loans'
+import { listAdminNotices } from '../../services/content'
+import { formatDate } from '../../utils/format'
 
 export function AdminDashboardPage(): ReactNode {
   const { data: productResult } = useQuery({
@@ -30,6 +33,10 @@ export function AdminDashboardPage(): ReactNode {
   const { data: loanAppResult } = useQuery({
     queryKey: ['admin-loan-apps', 'dashboard'],
     queryFn: () => listAdminApplications({ per_page: 5 }),
+  })
+  const { data: noticeResult } = useQuery({
+    queryKey: ['admin-notices', 'dashboard'],
+    queryFn: () => listAdminNotices({ per_page: 5 }),
   })
 
   const stats = [
@@ -97,6 +104,35 @@ export function AdminDashboardPage(): ReactNode {
       </Grid>
 
       <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card variant="outlined">
+            <CardContent>
+              <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="h6">Recent Notices</Typography>
+                <Button size="small" component={RouterLink} to="/admin/notices" startIcon={<ArrowForwardIcon fontSize="small" />}>
+                  View All
+                </Button>
+              </Stack>
+              {noticeResult?.data.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">No notices yet.</Typography>
+              ) : (
+                <Stack spacing={1}>
+                  {noticeResult?.data.slice(0, 5).map((notice) => (
+                    <Stack key={notice.id} direction="row" spacing={2} sx={{ alignItems: 'center', p: 1, borderBottom: 1, borderColor: 'divider' }}>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{notice.title}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {notice.publish_at ? formatDate(notice.publish_at) : 'Draft'}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">{notice.status}</Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <Card variant="outlined">
             <CardContent>

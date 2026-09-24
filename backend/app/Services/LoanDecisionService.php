@@ -7,6 +7,8 @@ use App\Models\LoanApplication;
 use App\Models\LoanDecision;
 use App\Models\LoanEligibilityDecision;
 use App\Models\User;
+use App\Notifications\LoanApproved;
+use App\Notifications\LoanRejected;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -112,6 +114,9 @@ class LoanDecisionService
 
             $application->update(['status' => 'approved']);
 
+            // Loan approval event notification for the applicant member.
+            $application->member->user->notify(new LoanApproved($loan->loan_number, $loan->id));
+
             return $loan;
         });
     }
@@ -140,6 +145,9 @@ class LoanDecisionService
             ]);
 
             $application->update(['status' => 'rejected', 'rejection_reason' => $reason]);
+
+            // Loan rejection event notification for the applicant member.
+            $application->member->user->notify(new LoanRejected($application->application_number, $reason));
 
             return $application->fresh();
         });

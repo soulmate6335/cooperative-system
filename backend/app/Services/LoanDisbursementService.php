@@ -7,6 +7,7 @@ use App\Models\FinancialTransaction;
 use App\Models\Loan;
 use App\Models\LoanDisbursement;
 use App\Models\User;
+use App\Notifications\LoanDisbursed;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -91,6 +92,9 @@ class LoanDisbursementService
                 'start_date' => now(),
                 'maturity_date' => $installments->last()->due_date,
             ]);
+
+            // Loan disbursement event notification for the applicant member.
+            $loan->member->user->notify(new LoanDisbursed($loan->loan_number, $loan->id));
 
             return [
                 'loan' => $loan->fresh(),

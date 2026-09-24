@@ -6,6 +6,8 @@ use App\Models\Member;
 use App\Models\MemberApplication;
 use App\Models\Role;
 use App\Models\User;
+use App\Notifications\MembershipApplicationApproved;
+use App\Notifications\MembershipApplicationRejected;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +82,9 @@ class MembershipApplicationService
                 Role::where('name', 'member')->firstOrFail()->id,
             ]);
 
+            // Membership approval event notification for the applicant.
+            $application->user->notify(new MembershipApplicationApproved($application->application_number));
+
             return $member;
         });
     }
@@ -105,6 +110,10 @@ class MembershipApplicationService
                 'rejection_reason' => $reason,
             ]);
             $application->user()->update(['status' => 'suspended']);
+
+            // Membership rejection event notification for the applicant,
+            // including the reviewer-provided reason when one was recorded.
+            $application->user->notify(new MembershipApplicationRejected($application->application_number, $reason));
 
             return $application->fresh(['reviewer']);
         });

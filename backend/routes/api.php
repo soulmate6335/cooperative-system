@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\AdminExecutiveController;
 use App\Http\Controllers\AdminLoanController;
 use App\Http\Controllers\AdminLoanDecisionController;
 use App\Http\Controllers\AdminLoanDisbursementController;
 use App\Http\Controllers\AdminLoanEligibilityController;
+use App\Http\Controllers\AdminNoticeController;
+use App\Http\Controllers\AdminOrganizationContentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommitteeLoanController;
 use App\Http\Controllers\CommitteeMeetingController;
@@ -13,12 +16,22 @@ use App\Http\Controllers\LoanGuarantorController;
 use App\Http\Controllers\LoanProductController;
 use App\Http\Controllers\MemberApplicationController;
 use App\Http\Controllers\MemberLoanController;
+use App\Http\Controllers\MemberNoticeController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PublicContentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('membership/applications', [MemberApplicationController::class, 'store'])->middleware('throttle:registration');
     Route::get('payment-methods', [FinancialController::class, 'paymentMethods']);
+
+    // Public organization content: homepage aggregate, visible public notices
+    // and visible executives. Never exposes drafts, archived or scheduled content.
+    Route::get('public/home', [PublicContentController::class, 'home']);
+    Route::get('notices', [PublicContentController::class, 'notices']);
+    Route::get('notices/{notice}', [PublicContentController::class, 'notice']);
+    Route::get('executives', [PublicContentController::class, 'executives']);
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('auth/logout', [AuthController::class, 'logout']);
@@ -102,5 +115,37 @@ Route::prefix('v1')->group(function (): void {
         Route::get('admin/loans/disbursement-queue', [AdminLoanDisbursementController::class, 'index']);
         Route::get('admin/loans/{loan}/disbursement', [AdminLoanDisbursementController::class, 'show']);
         Route::post('admin/loans/{loan}/disburse', [AdminLoanDisbursementController::class, 'disburse']);
+
+        // Member notices.
+        Route::get('member/notices', [MemberNoticeController::class, 'index']);
+
+        // Admin notice management (notices.manage).
+        Route::prefix('admin/notices')->group(function (): void {
+            Route::get('/', [AdminNoticeController::class, 'index']);
+            Route::post('/', [AdminNoticeController::class, 'store']);
+            Route::get('/{notice}', [AdminNoticeController::class, 'show']);
+            Route::patch('/{notice}', [AdminNoticeController::class, 'update']);
+            Route::post('/{notice}/publish', [AdminNoticeController::class, 'publish']);
+            Route::post('/{notice}/archive', [AdminNoticeController::class, 'archive']);
+        });
+
+        // Admin executive management (executives.manage).
+        Route::prefix('admin/executives')->group(function (): void {
+            Route::get('/', [AdminExecutiveController::class, 'index']);
+            Route::post('/', [AdminExecutiveController::class, 'store']);
+            Route::get('/{executive}', [AdminExecutiveController::class, 'show']);
+            Route::patch('/{executive}', [AdminExecutiveController::class, 'update']);
+            Route::post('/{executive}/visibility', [AdminExecutiveController::class, 'visibility']);
+        });
+
+        // Admin homepage content (settings.manage).
+        Route::get('admin/home-content', [AdminOrganizationContentController::class, 'show']);
+        Route::patch('admin/home-content', [AdminOrganizationContentController::class, 'update']);
+
+        // Personal notification inbox (scope-owned by the authenticated user).
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::post('notifications/{notification}/read', [NotificationController::class, 'read']);
+        Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
     });
 });

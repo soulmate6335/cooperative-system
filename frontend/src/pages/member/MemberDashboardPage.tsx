@@ -11,8 +11,10 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import AddIcon from '@mui/icons-material/Add'
+import CampaignIcon from '@mui/icons-material/Campaign'
 import GroupsIcon from '@mui/icons-material/Groups'
 import HistoryIcon from '@mui/icons-material/History'
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
 import PaymentsIcon from '@mui/icons-material/Payments'
 import ReceiptIcon from '@mui/icons-material/Receipt'
 import { Link as RouterLink } from 'react-router-dom'
@@ -23,8 +25,10 @@ import { TableSkeleton } from '../../components/common/Skeletons'
 import { StatusPill } from '../../components/common/StatusPill'
 import { SimplePageContainer } from '../../components/common/PageContainer'
 import { useAuth } from '../../features/auth/AuthContext'
+import { listMemberNotices } from '../../services/content'
 import { listLoanProducts } from '../../services/loans'
 import { listMemberAccounts } from '../../services/financial'
+import { listNotifications } from '../../services/notifications'
 import { formatDate, formatNaira, titleCase } from '../../utils/format'
 import { getErrorMessage } from '../../utils/errors'
 
@@ -35,6 +39,16 @@ export function MemberDashboardPage(): ReactNode {
   const productsQuery = useQuery({
     queryKey: ['member', 'loan-products'],
     queryFn: listLoanProducts,
+  })
+
+  const notificationsQuery = useQuery({
+    queryKey: ['member-dashboard', 'notifications'],
+    queryFn: () => listNotifications({ per_page: 5 }),
+  })
+
+  const noticesQuery = useQuery({
+    queryKey: ['member-dashboard', 'notices'],
+    queryFn: () => listMemberNotices({ per_page: 3 }),
   })
 
   const accountsQuery = useQuery({
@@ -59,6 +73,9 @@ export function MemberDashboardPage(): ReactNode {
   }
 
   const totalBalanceMinor = accountsQuery.data.reduce((sum, account) => sum + (account.balance_minor ?? 0), 0)
+
+  const recentNotifications = notificationsQuery.data?.data ?? []
+  const recentNotices = noticesQuery.data?.data ?? []
 
   return (
     <SimplePageContainer
@@ -146,6 +163,104 @@ export function MemberDashboardPage(): ReactNode {
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {formatNaira(account.balance_minor)}
                     </Typography>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card variant="outlined">
+          <CardContent>
+            <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <NotificationsNoneIcon color="primary" />
+                <Typography variant="h6">Recent notifications</Typography>
+              </Stack>
+              <Button component={RouterLink} to="/notifications" size="small" sx={{ textTransform: 'none' }}>
+                View all
+              </Button>
+            </Stack>
+            {notificationsQuery.isPending ? (
+              <Typography variant="body2" color="text.secondary">
+                Loading…
+              </Typography>
+            ) : notificationsQuery.isError ? (
+              <Typography variant="body2" color="text.secondary">
+                Notifications are temporarily unavailable.
+              </Typography>
+            ) : recentNotifications.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No notifications yet — approvals, loan and payment updates will appear here.
+              </Typography>
+            ) : (
+              <List disablePadding>
+                {recentNotifications.slice(0, 5).map((notification) => (
+                  <ListItem key={notification.id} divider sx={{ px: 0, alignItems: 'flex-start' }}>
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2" sx={{ fontWeight: notification.read_at === null ? 700 : 500 }}>
+                          {notification.title ?? 'Update'}
+                        </Typography>
+                      }
+                      secondary={
+                        <>
+                          <Typography component="span" variant="caption" color="text.secondary">
+                            {notification.message ?? ''}
+                          </Typography>
+                          <br />
+                          <Typography component="span" variant="caption" color="text.secondary">
+                            {notification.created_at ? formatDate(notification.created_at) : ''}
+                          </Typography>
+                        </>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card variant="outlined">
+          <CardContent>
+            <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <CampaignIcon color="primary" />
+                <Typography variant="h6">Latest notices</Typography>
+              </Stack>
+              <Button component={RouterLink} to="/member/notices" size="small" sx={{ textTransform: 'none' }}>
+                View all
+              </Button>
+            </Stack>
+            {noticesQuery.isPending ? (
+              <Typography variant="body2" color="text.secondary">
+                Loading…
+              </Typography>
+            ) : noticesQuery.isError ? (
+              <Typography variant="body2" color="text.secondary">
+                Notices are temporarily unavailable.
+              </Typography>
+            ) : recentNotices.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No notices published yet.
+              </Typography>
+            ) : (
+              <List disablePadding>
+                {recentNotices.slice(0, 3).map((notice) => (
+                  <ListItem key={notice.id} divider sx={{ px: 0, alignItems: 'flex-start' }}>
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {notice.title}
+                        </Typography>
+                      }
+                      secondary={
+                        <Typography component="span" variant="caption" color="text.secondary">
+                          {notice.excerpt ?? notice.body}
+                        </Typography>
+                      }
+                    />
                   </ListItem>
                 ))}
               </List>

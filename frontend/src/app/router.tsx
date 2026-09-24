@@ -24,6 +24,7 @@ import { MemberLoansPage } from '../pages/member/MemberLoansPage'
 import { MemberLoanDetailPage } from '../pages/member/MemberLoanDetailPage'
 import { GuarantorRequestsPage } from '../pages/member/GuarantorRequestsPage'
 import { MemberAccountsPage } from '../pages/member/MemberAccountsPage'
+import { MemberNoticesPage } from '../pages/member/MemberNoticesPage'
 
 import { CommitteeDashboardPage } from '../pages/committee/CommitteeDashboardPage'
 import { CommitteeApplicationDetailPage } from '../pages/committee/CommitteeApplicationDetailPage'
@@ -45,6 +46,10 @@ import { ReceiptsPage } from '../pages/admin/ReceiptsPage'
 import { PaymentMethodsPage } from '../pages/admin/PaymentMethodsPage'
 import { FinancialAccountsPage } from '../pages/admin/FinancialAccountsPage'
 import { MembersDirectoryPage } from '../pages/admin/MembersDirectoryPage'
+import { AdminNoticesPage } from '../pages/admin/AdminNoticesPage'
+import { AdminExecutivesPage } from '../pages/admin/AdminExecutivesPage'
+import { AdminHomeContentPage } from '../pages/admin/AdminHomeContentPage'
+import { NotificationsPage } from '../pages/notifications/NotificationsPage'
 
 import { FinanceDashboardPage } from '../pages/finance/FinanceDashboardPage'
 
@@ -69,6 +74,9 @@ const routes: RouteObject[] = [
       </RequireAuth>
     ),
     children: [
+      // ------------------------------------------------- shared inbox
+      { path: '/notifications', element: <NotificationsPage /> },
+
       // ------------------------------------------------ member portal
       { path: '/member', element: <RequireRoles roles={['member']}><MemberDashboardPage /></RequireRoles> },
       { path: '/member/profile', element: <RequireRoles roles={['member']}><MemberProfilePage /></RequireRoles> },
@@ -81,6 +89,7 @@ const routes: RouteObject[] = [
       { path: '/member/loans/:id', element: <RequireRoles roles={['member']}><MemberLoanDetailPage /></RequireRoles> },
       { path: '/member/guarantor-requests', element: <RequireRoles roles={['member']}><GuarantorRequestsPage /></RequireRoles> },
       { path: '/member/accounts', element: <RequireRoles roles={['member']}><MemberAccountsPage /></RequireRoles> },
+      { path: '/member/notices', element: <RequireRoles roles={['member']}><MemberNoticesPage /></RequireRoles> },
 
       // ------------------------------------------------- committee portal
       { path: '/committee', element: <RequireRoles roles={['committee_officer']}><CommitteeDashboardPage /></RequireRoles> },
@@ -100,6 +109,9 @@ const routes: RouteObject[] = [
       { path: '/admin/loan-products', element: <RequireRoles roles={ADMIN_ROLES}><LoanProductsAdminPage /></RequireRoles> },
       { path: '/admin/committee-meetings', element: <RequireRoles roles={ADMIN_ROLES}><CommitteeMeetingsPage /></RequireRoles> },
       { path: '/admin/members', element: <RequireRoles roles={ADMIN_ROLES}><MembersDirectoryPage /></RequireRoles> },
+      { path: '/admin/notices', element: <RequireRoles roles={ADMIN_ROLES}><AdminNoticesPage /></RequireRoles> },
+      { path: '/admin/executives', element: <RequireRoles roles={ADMIN_ROLES}><AdminExecutivesPage /></RequireRoles> },
+      { path: '/admin/home-content', element: <RequireRoles roles={ADMIN_ROLES}><AdminHomeContentPage /></RequireRoles> },
 
       // ---------------- admin + finance shared financial pages
       { path: '/admin/payments', element: <RequireRoles roles={[...ADMIN_ROLES, 'finance_officer']}><PaymentsPage /></RequireRoles> },
