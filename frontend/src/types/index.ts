@@ -159,6 +159,97 @@ export interface Loan {
   updated_at: string
 }
 
+export type LoanStatus = 'pending_disbursement' | 'disbursed' | 'completed'
+
+export interface LoanDisbursement {
+  id: string
+  loan_id: string
+  amount_minor: number
+  payment_method_id: string | null
+  financial_account_id: string
+  reference: string | null
+  status: string
+  disbursed_at: string | null
+  authorized_by: string
+}
+
+export interface LoanInstallment {
+  id: string
+  loan_id: string
+  installment_number: number
+  due_date: string | null
+  principal_due_minor: number
+  interest_due_minor: number
+  total_due_minor: number
+  principal_paid_minor: number
+  interest_paid_minor: number
+  total_paid_minor: number
+  outstanding_minor: number
+  status: string
+  paid_at: string | null
+}
+
+export interface LoanObligations {
+  total_principal_minor: number
+  total_interest_minor: number
+  total_obligation_minor: number
+  principal_paid_minor: number
+  interest_paid_minor: number
+  total_paid_minor: number
+  principal_outstanding_minor: number
+  interest_outstanding_minor: number
+  total_outstanding_minor: number
+  next_due_installment: LoanInstallment | null
+}
+
+/** Composed loan view returned by the admin disbursement area and member loan pages. */
+export interface LoanOverview {
+  id: string
+  loan_application_id: string
+  loan_number: string
+  status: LoanStatus
+  principal_amount_minor: number
+  interest_rate_basis_points: number
+  interest_method: string
+  repayment_months: number
+  interest_amount_minor: number | null
+  total_payable_minor: number | null
+  disbursed_amount_minor: number
+  disbursed_at: string | null
+  start_date: string | null
+  maturity_date: string | null
+  member: {
+    id: string
+    member_number: string
+    name: string | null
+    status: string
+    membership_type: string | null
+  } | null
+  product: { id: string; name: string } | null
+  decision: {
+    decision: 'approved' | 'rejected'
+    approved_amount_minor: number | null
+    interest_rate_basis_points: number | null
+    interest_method: string | null
+    repayment_months: number | null
+    decision_reason: string | null
+    decided_by: string
+    decided_by_name: string | null
+    decided_at: string | null
+  } | null
+  disbursement: LoanDisbursement | null
+  installments: LoanInstallment[] | null
+  obligations: LoanObligations | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LoanDisbursementResult {
+  loan: LoanOverview
+  disbursement: LoanDisbursement
+  transaction: FinancialTransaction
+}
+
 export interface CommitteeMeeting {
   id: string
   meeting_date: string | null
@@ -251,7 +342,7 @@ export interface AdminLoanDecisionDetail {
   }
 }
 
-export type AccountType = 'contribution' | 'savings' | 'shares'
+export type AccountType = 'contribution' | 'savings' | 'shares' | 'loan'
 
 export interface FinancialAccount {
   id: string
@@ -288,11 +379,12 @@ export interface PaymentMethod {
   display_order: number
 }
 
-export type PaymentPurpose = 'contribution' | 'savings' | 'shares'
+export type PaymentPurpose = 'contribution' | 'savings' | 'shares' | 'loan_repayment'
 
 export interface Payment {
   id: string
   member_id: string
+  loan_id: string | null
   payment_method_id: string
   amount_minor: number
   payment_date: string | null

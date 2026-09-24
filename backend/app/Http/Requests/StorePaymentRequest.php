@@ -16,11 +16,12 @@ class StorePaymentRequest extends FormRequest
     {
         return [
             'member_id' => ['required', 'uuid', 'exists:members,id'],
+            'loan_id' => ['sometimes', 'nullable', 'uuid', 'exists:loans,id'],
             'payment_method_id' => ['required', 'uuid', 'exists:payment_methods,id'],
             'amount_minor' => ['required', 'integer', 'min:1'],
             'payment_date' => ['required', 'date'],
             'reference_number' => ['required', 'string', 'max:100', 'unique:payments,reference_number'],
-            'purpose' => ['required', 'string', 'in:contribution,savings,shares'],
+            'purpose' => ['required', 'string', 'in:contribution,savings,shares,loan_repayment'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

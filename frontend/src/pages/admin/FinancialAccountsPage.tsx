@@ -15,14 +15,16 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance'
 
 import { PageContainer } from '../../components/common/PageContainer'
 import { createFinancialAccount, type CreateFinancialAccountPayload } from '../../services/financial'
-import type { AccountType } from '../../types'
 import { getErrorMessage } from '../../utils/errors'
 
-const ACCOUNT_TYPES: AccountType[] = ['contribution', 'savings', 'shares']
+/** Loan accounts are auto-created by disbursement, not through this form. */
+type CreateableAccountType = 'contribution' | 'savings' | 'shares'
+
+const ACCOUNT_TYPES: CreateableAccountType[] = ['contribution', 'savings', 'shares']
 
 export function FinancialAccountsPage(): ReactNode {
   const [memberId, setMemberId] = useState('')
-  const [accountType, setAccountType] = useState<AccountType>('contribution')
+  const [accountType, setAccountType] = useState<CreateableAccountType>('contribution')
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,7 +68,7 @@ export function FinancialAccountsPage(): ReactNode {
                     select
                     label="Account type"
                     value={accountType}
-                    onChange={(e) => setAccountType(e.target.value as AccountType)}
+                    onChange={(e) => setAccountType(e.target.value as CreateableAccountType)}
                     fullWidth
                     size="small"
                   >

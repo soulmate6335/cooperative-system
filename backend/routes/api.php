@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminLoanController;
 use App\Http\Controllers\AdminLoanDecisionController;
+use App\Http\Controllers\AdminLoanDisbursementController;
 use App\Http\Controllers\AdminLoanEligibilityController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommitteeLoanController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\LoanApplicationController;
 use App\Http\Controllers\LoanGuarantorController;
 use App\Http\Controllers\LoanProductController;
 use App\Http\Controllers\MemberApplicationController;
+use App\Http\Controllers\MemberLoanController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -89,5 +91,16 @@ Route::prefix('v1')->group(function (): void {
         Route::get('admin/loan-eligibility/members', [AdminLoanEligibilityController::class, 'members']);
         Route::get('admin/loan-eligibility/assessments', [AdminLoanEligibilityController::class, 'assessment']);
         Route::post('admin/loan-eligibility/decisions', [AdminLoanEligibilityController::class, 'decide']);
+
+        // Member loans (disbursed + active + completed) and repayment submission.
+        Route::get('member/loans', [MemberLoanController::class, 'index']);
+        Route::get('member/loans/{loan}', [MemberLoanController::class, 'show']);
+        Route::get('member/loans/{loan}/schedule', [MemberLoanController::class, 'schedule']);
+        Route::post('member/loans/{loan}/repayments', [MemberLoanController::class, 'repayment'])->middleware('throttle:loan_submission');
+
+        // Admin/finance loan disbursement.
+        Route::get('admin/loans/disbursement-queue', [AdminLoanDisbursementController::class, 'index']);
+        Route::get('admin/loans/{loan}/disbursement', [AdminLoanDisbursementController::class, 'show']);
+        Route::post('admin/loans/{loan}/disburse', [AdminLoanDisbursementController::class, 'disburse']);
     });
 });

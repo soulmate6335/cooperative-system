@@ -20,6 +20,8 @@ import { MemberLoanProductsPage } from '../pages/member/MemberLoanProductsPage'
 import { LoanApplicationsPage } from '../pages/member/LoanApplicationsPage'
 import { NewLoanApplicationPage } from '../pages/member/NewLoanApplicationPage'
 import { LoanApplicationDetailPage } from '../pages/member/LoanApplicationDetailPage'
+import { MemberLoansPage } from '../pages/member/MemberLoansPage'
+import { MemberLoanDetailPage } from '../pages/member/MemberLoanDetailPage'
 import { GuarantorRequestsPage } from '../pages/member/GuarantorRequestsPage'
 import { MemberAccountsPage } from '../pages/member/MemberAccountsPage'
 
@@ -32,8 +34,12 @@ import { MembershipApplicationsPage } from '../pages/admin/MembershipApplication
 import { MembershipApplicationDetailPage } from '../pages/admin/MembershipApplicationDetailPage'
 import { AdminLoanApplicationsPage } from '../pages/admin/AdminLoanApplicationsPage'
 import { AdminLoanApplicationDetailPage } from '../pages/admin/AdminLoanApplicationDetailPage'
+import { AdminLoanDecisionsPage } from '../pages/admin/AdminLoanDecisionsPage'
+import { AdminLoanDecisionDetailPage } from '../pages/admin/AdminLoanDecisionDetailPage'
 import { LoanProductsAdminPage } from '../pages/admin/LoanProductsAdminPage'
 import { CommitteeMeetingsPage } from '../pages/admin/CommitteeMeetingsPage'
+import { AdminLoanDisbursementsPage } from '../pages/admin/AdminLoanDisbursementsPage'
+import { AdminLoanDisbursementDetailPage } from '../pages/admin/AdminLoanDisbursementDetailPage'
 import { PaymentsPage } from '../pages/admin/PaymentsPage'
 import { ReceiptsPage } from '../pages/admin/ReceiptsPage'
 import { PaymentMethodsPage } from '../pages/admin/PaymentMethodsPage'
@@ -71,6 +77,8 @@ const routes: RouteObject[] = [
       { path: '/member/loans/applications', element: <RequireRoles roles={['member']}><LoanApplicationsPage /></RequireRoles> },
       { path: '/member/loans/applications/new', element: <RequireRoles roles={['member']}><NewLoanApplicationPage /></RequireRoles> },
       { path: '/member/loans/applications/:id', element: <RequireRoles roles={['member']}><LoanApplicationDetailPage /></RequireRoles> },
+      { path: '/member/loans', element: <RequireRoles roles={['member']}><MemberLoansPage /></RequireRoles> },
+      { path: '/member/loans/:id', element: <RequireRoles roles={['member']}><MemberLoanDetailPage /></RequireRoles> },
       { path: '/member/guarantor-requests', element: <RequireRoles roles={['member']}><GuarantorRequestsPage /></RequireRoles> },
       { path: '/member/accounts', element: <RequireRoles roles={['member']}><MemberAccountsPage /></RequireRoles> },
 
@@ -84,6 +92,10 @@ const routes: RouteObject[] = [
       { path: '/admin/membership-applications/:id', element: <RequireRoles roles={ADMIN_ROLES}><MembershipApplicationDetailPage /></RequireRoles> },
       { path: '/admin/loans/applications', element: <RequireRoles roles={ADMIN_ROLES}><AdminLoanApplicationsPage /></RequireRoles> },
       { path: '/admin/loans/applications/:id', element: <RequireRoles roles={ADMIN_ROLES}><AdminLoanApplicationDetailPage /></RequireRoles> },
+      { path: '/admin/loan-decisions', element: <RequireRoles roles={ADMIN_ROLES}><AdminLoanDecisionsPage /></RequireRoles> },
+      { path: '/admin/loan-decisions/:applicationId', element: <RequireRoles roles={ADMIN_ROLES}><AdminLoanDecisionDetailPage /></RequireRoles> },
+      { path: '/admin/loans/disbursements', element: <RequireRoles roles={[...ADMIN_ROLES, 'finance_officer']}><AdminLoanDisbursementsPage /></RequireRoles> },
+      { path: '/admin/loans/:loanId/disbursement', element: <RequireRoles roles={[...ADMIN_ROLES, 'finance_officer']}><AdminLoanDisbursementDetailPage /></RequireRoles> },
       { path: '/admin/loan-eligibility', element: <RequireRoles roles={ADMIN_ROLES}><AdminLoanEligibilityPage /></RequireRoles> },
       { path: '/admin/loan-products', element: <RequireRoles roles={ADMIN_ROLES}><LoanProductsAdminPage /></RequireRoles> },
       { path: '/admin/committee-meetings', element: <RequireRoles roles={ADMIN_ROLES}><CommitteeMeetingsPage /></RequireRoles> },

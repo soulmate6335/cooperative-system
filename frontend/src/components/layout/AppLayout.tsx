@@ -32,6 +32,7 @@ import AssignmentIndIcon from '@mui/icons-material/AssignmentInd'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import MenuIcon from '@mui/icons-material/Menu'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import type { SvgIconComponent } from '@mui/icons-material'
 
 import { useAuth } from '../../features/auth/AuthContext'
@@ -64,6 +65,7 @@ export function AppLayout(): ReactNode {
       { label: 'Loan Eligibility', to: '/member/eligibility', icon: FactCheckIcon },
       { label: 'Loan Products', to: '/member/loans/products', icon: ListAltIcon },
       { label: 'My Applications', to: '/member/loans/applications', icon: RequestQuoteIcon },
+      { label: 'My Loans', to: '/member/loans', icon: AccountBalanceWalletIcon },
       { label: 'Guarantee Requests', to: '/member/guarantor-requests', icon: GroupIcon },
       { label: 'Savings & Contributions', to: '/member/accounts', icon: SavingsIcon },
       { label: 'Profile', to: '/member/profile', icon: PersonIcon },
@@ -76,6 +78,7 @@ export function AppLayout(): ReactNode {
       { label: 'Member Applications', to: '/admin/membership-applications', icon: GroupIcon },
       { label: 'Loan Applications', to: '/admin/loans/applications', icon: RequestQuoteIcon },
       { label: 'Loan Decisions', to: '/admin/loan-decisions', icon: GavelIcon },
+      { label: 'Loan Disbursements', to: '/admin/loans/disbursements', icon: AccountBalanceWalletIcon },
       { label: 'Loan Eligibility', to: '/admin/loan-eligibility', icon: FactCheckIcon },
       { label: 'Loan Products', to: '/admin/loan-products', icon: Inventory2Icon },
       { label: 'Committee Meetings', to: '/admin/committee-meetings', icon: AssignmentIndIcon },
@@ -87,6 +90,7 @@ export function AppLayout(): ReactNode {
     ]
     const financeItems: NavItem[] = [
       { label: 'Dashboard', to: '/finance', icon: DashboardIcon },
+      { label: 'Loan Disbursements', to: '/admin/loans/disbursements', icon: AccountBalanceWalletIcon },
       { label: 'Record Payment', to: '/admin/payments', icon: PaymentsIcon },
       { label: 'Verify & Receipts', to: '/admin/receipts', icon: ReceiptLongIcon },
     ]

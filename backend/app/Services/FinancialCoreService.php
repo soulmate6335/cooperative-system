@@ -22,7 +22,7 @@ class FinancialCoreService
             throw ValidationException::withMessages(['member' => 'Only active members may have financial accounts.']);
         }
 
-        if (! in_array($accountType, ['contribution', 'savings', 'shares'], true)) {
+        if (! in_array($accountType, ['contribution', 'savings', 'shares', 'loan'], true)) {
             throw ValidationException::withMessages(['account_type' => 'The account type is not supported.']);
         }
 
@@ -47,8 +47,12 @@ class FinancialCoreService
                 throw ValidationException::withMessages(['payment_method_id' => 'The payment method is inactive or does not exist.']);
             }
 
-            if (! in_array($data['purpose'], ['contribution', 'savings', 'shares'], true)) {
+            if (! in_array($data['purpose'], ['contribution', 'savings', 'shares', 'loan_repayment'], true)) {
                 throw ValidationException::withMessages(['purpose' => 'The payment purpose is not supported.']);
+            }
+
+            if ($data['purpose'] === 'loan_repayment' && empty($data['loan_id'])) {
+                throw ValidationException::withMessages(['loan_id' => 'A loan is required for a loan repayment payment.']);
             }
 
             if (in_array($data['purpose'], ['contribution', 'savings'], true) && (int) $data['amount_minor'] < 10000) {
@@ -80,9 +84,14 @@ class FinancialCoreService
                 throw ValidationException::withMessages(['verifier' => 'The verifier must be different from the recording officer.']);
             }
 
+            // Loan repayments post to the member's "loan" ledger account rather
+            // than a purpose-named account (there is no contribution/savings/
+            // shares equivalent for a repayment purpose).
+            $accountType = $payment->purpose === 'loan_repayment' ? 'loan' : $payment->purpose;
+
             $account = FinancialAccount::query()
                 ->where('member_id', $payment->member_id)
-                ->where('account_type', $payment->purpose)
+                ->where('account_type', $accountType)
                 ->where('status', 'active')
                 ->lockForUpdate()
                 ->first();
@@ -109,6 +118,42 @@ class FinancialCoreService
                 'status' => 'posted',
                 'created_by' => $payment->recorded_by,
                 'posted_by' => $verifier->id,
+                'posted_at' => now(),
+            ]);
+        });
+    }
+
+    /**
+     * Post a loan disbursement to the Financial Core ledger: money leaving the
+     * cooperative is a posted debit on the member's loan account. This is the
+     * only disbursement posting path - loan services must not insert posted
+     * transactions directly.
+     */
+    public function recordLoanDisbursement(
+        FinancialAccount $account,
+        int $amountMinor,
+        string $reference,
+        ?string $description,
+        User $authorizer,
+    ): FinancialTransaction {
+        return DB::transaction(function () use ($account, $amountMinor, $reference, $description, $authorizer): FinancialTransaction {
+            $account = FinancialAccount::query()->lockForUpdate()->find($account->id);
+
+            if (! $account || $account->status !== 'active') {
+                throw ValidationException::withMessages(['account' => 'An active financial account is required for disbursement.']);
+            }
+
+            return FinancialTransaction::create([
+                'account_id' => $account->id,
+                'transaction_type' => 'loan_disbursement',
+                'direction' => 'debit',
+                'amount_minor' => $amountMinor,
+                'transaction_date' => now(),
+                'reference' => $reference,
+                'description' => $description ?? 'Loan disbursement',
+                'status' => 'posted',
+                'created_by' => $authorizer->id,
+                'posted_by' => $authorizer->id,
                 'posted_at' => now(),
             ]);
         });

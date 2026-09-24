@@ -31,6 +31,7 @@ const STATUS_MAP: Record<string, StatusStyle> = {
 
   // Loans
   pending_disbursement: { label: 'Pending Disbursement', color: 'warning', tone: 'warning' },
+  disbursed: { label: 'Disbursed', color: 'primary', tone: 'info' },
   overdue: { label: 'Overdue', color: 'error', tone: 'error' },
   defaulted: { label: 'Defaulted', color: 'error', tone: 'error' },
   completed: { label: 'Completed', color: 'success', tone: 'success' },

@@ -18,7 +18,7 @@ class Payment extends Model
     protected $fillable = [
         'member_id', 'payment_method_id', 'amount_minor', 'payment_date',
         'reference_number', 'purpose', 'status', 'recorded_by', 'verified_by',
-        'verified_at', 'notes',
+        'verified_at', 'notes', 'loan_id',
     ];
 
     protected function casts(): array
@@ -33,6 +33,11 @@ class Payment extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class);
+    }
+
+    public function loan(): BelongsTo
+    {
+        return $this->belongsTo(Loan::class);
     }
 
     public function paymentMethod(): BelongsTo

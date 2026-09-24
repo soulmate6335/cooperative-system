@@ -9,11 +9,15 @@ import type {
   InvestigationStatus,
   Loan,
   LoanApplication,
+  LoanDisbursementResult,
   LoanGuarantor,
+  LoanInstallment,
   LoanInvestigation,
+  LoanOverview,
   LoanProduct,
   Member,
   PageResult,
+  Payment,
 } from '../types'
 
 export interface LoanListFilters {
@@ -261,6 +265,55 @@ export async function approveAdminLoan(applicationId: string, payload: ApproveLo
 
 export async function rejectAdminLoan(applicationId: string, reason: string): Promise<LoanApplication> {
   return unwrap<LoanApplication>(api.post(`/admin/loan-decisions/${applicationId}/reject`, { reason }))
+}
+
+// ------------------------------------------------ admin disbursement area
+
+export interface AdminDisbursementQueueFilters {
+  search?: string
+  product_id?: string
+  per_page?: number
+  /** Server-side page number (Laravel paginator, 1-based). */
+  page?: number
+}
+
+export async function listAdminLoanDisbursements(
+  filters: AdminDisbursementQueueFilters = {},
+): Promise<PageResult<LoanOverview>> {
+  return unwrapPage<LoanOverview>(api.get('/admin/loans/disbursement-queue', { params: filters }))
+}
+
+export async function getAdminLoanDisbursement(id: string): Promise<LoanOverview> {
+  return unwrap<LoanOverview>(api.get(`/admin/loans/${id}/disbursement`))
+}
+
+export async function disburseLoan(id: string, amountMinor: number): Promise<LoanDisbursementResult> {
+  return unwrap<LoanDisbursementResult>(api.post(`/admin/loans/${id}/disburse`, { amount_minor: amountMinor }))
+}
+
+// ---------------------------------------------------------- member loans
+
+export async function listMemberLoans(filters: { per_page?: number; page?: number } = {}): Promise<PageResult<LoanOverview>> {
+  return unwrapPage<LoanOverview>(api.get('/member/loans', { params: filters }))
+}
+
+export async function getMemberLoan(id: string): Promise<LoanOverview> {
+  return unwrap<LoanOverview>(api.get(`/member/loans/${id}`))
+}
+
+export async function getMemberLoanSchedule(id: string): Promise<LoanInstallment[]> {
+  return unwrap<LoanInstallment[]>(api.get(`/member/loans/${id}/schedule`))
+}
+
+export interface SubmitLoanRepaymentPayload {
+  amount_minor: number
+  payment_method_id: string
+  payment_date: string
+  reference_number?: string
+}
+
+export async function submitLoanRepayment(id: string, payload: SubmitLoanRepaymentPayload): Promise<Payment> {
+  return unwrap<Payment>(api.post(`/member/loans/${id}/repayments`, payload))
 }
 
 export type { InvestigationStatus }

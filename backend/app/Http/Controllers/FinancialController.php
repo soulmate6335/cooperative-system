@@ -15,13 +15,17 @@ use App\Models\Member;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Services\FinancialCoreService;
+use App\Services\LoanRepaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class FinancialController extends Controller
 {
-    public function __construct(private readonly FinancialCoreService $service) {}
+    public function __construct(
+        private readonly FinancialCoreService $service,
+        private readonly LoanRepaymentService $repayments,
+    ) {}
 
     public function paymentMethods(): JsonResponse
     {
@@ -73,7 +77,11 @@ class FinancialController extends Controller
 
     public function storePayment(StorePaymentRequest $request): JsonResponse
     {
-        $payment = $this->service->recordPayment($request->validated(), $request->user());
+        // Loan repayments run through the repayment service so the loan
+        // obligation checks and allocation pipeline stay together.
+        $payment = $request->validated('purpose') === 'loan_repayment'
+            ? $this->repayments->submit($request->validated(), $request->user())
+            : $this->service->recordPayment($request->validated(), $request->user());
 
         return response()->json([
             'success' => true,
@@ -88,7 +96,9 @@ class FinancialController extends Controller
             abort(403);
         }
 
-        $transaction = $this->service->verifyPayment($payment, $request->user());
+        $transaction = $payment->purpose === 'loan_repayment'
+            ? $this->repayments->verify($payment, $request->user())
+            : $this->service->verifyPayment($payment, $request->user());
 
         return response()->json([
             'success' => true,
@@ -133,7 +143,11 @@ class FinancialController extends Controller
             abort(403);
         }
 
-        $reversal = $this->service->reverse($transaction, $request->user());
+        // Repayment reversals additionally void the derived installment
+        // allocations through the repayment service.
+        $reversal = $transaction->transaction_type === 'loan_repayment'
+            ? $this->repayments->reverse($transaction, $request->user())
+            : $this->service->reverse($transaction, $request->user());
 
         return response()->json([
             'success' => true,
