@@ -1,6 +1,7 @@
 import { api, unwrap, unwrapPage } from './api'
 
 import type {
+  AdminLoanDecisionDetail,
   EligibilityAssessment,
   EligibilityDecision,
   EligibilityFactors,
@@ -231,6 +232,35 @@ export async function approveLoanApplication(applicationId: string, payload: App
 
 export async function rejectLoanApplication(applicationId: string, reason: string): Promise<LoanApplication> {
   return unwrap<LoanApplication>(api.post(`/admin/loans/applications/${applicationId}/reject`, { reason }))
+}
+
+// -------------------------------------------------------- final decisions
+
+export interface AdminLoanDecisionFilters {
+  search?: string
+  product_id?: string
+  meeting_id?: string
+  per_page?: number
+  /** Server-side page number (Laravel paginator, 1-based). */
+  page?: number
+}
+
+export async function listAdminLoanDecisions(
+  filters: AdminLoanDecisionFilters = {},
+): Promise<PageResult<LoanApplication>> {
+  return unwrapPage<LoanApplication>(api.get('/admin/loan-decisions', { params: filters }))
+}
+
+export async function getAdminLoanDecision(id: string): Promise<AdminLoanDecisionDetail> {
+  return unwrap<AdminLoanDecisionDetail>(api.get(`/admin/loan-decisions/${id}`))
+}
+
+export async function approveAdminLoan(applicationId: string, payload: ApproveLoanPayload): Promise<Loan> {
+  return unwrap<Loan>(api.post(`/admin/loan-decisions/${applicationId}/approve`, payload))
+}
+
+export async function rejectAdminLoan(applicationId: string, reason: string): Promise<LoanApplication> {
+  return unwrap<LoanApplication>(api.post(`/admin/loan-decisions/${applicationId}/reject`, { reason }))
 }
 
 export type { InvestigationStatus }

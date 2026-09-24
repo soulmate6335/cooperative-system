@@ -13,6 +13,7 @@ class LoanInvestigationResource extends JsonResource
             'id' => $this->id,
             'loan_application_id' => $this->loan_application_id,
             'assigned_to' => $this->assigned_to,
+            'assignee' => UserResource::make($this->whenLoaded('assignee')),
             'investigation_date' => $this->investigation_date?->toISOString(),
             'member_findings' => $this->member_findings,
             'savings_findings' => $this->savings_findings,

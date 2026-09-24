@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanDecision;
+use App\Models\LoanEligibilityDecision;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -12,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class LoanDecisionService
 {
+    public function __construct(private readonly LoanEligibilityService $eligibility) {}
+
     public function approve(LoanApplication $application, User $admin, array $terms): Loan
     {
         return DB::transaction(function () use ($application, $admin, $terms): Loan {
@@ -27,6 +30,14 @@ class LoanDecisionService
 
             if ($application->member->status !== 'active') {
                 throw ValidationException::withMessages(['member' => 'The application is frozen while the member is suspended.']);
+            }
+
+            // RA-ELIGIBILITY: approval revalidates the current eligibility
+            // authority. Eligibility history is append-only, so a decision
+            // recorded after submission may have changed the member's
+            // standing; a stale eligible decision cannot justify approval.
+            if ($this->eligibility->currentDecisionStatusFor($application->member, $application->product) !== LoanEligibilityDecision::ELIGIBLE) {
+                throw ValidationException::withMessages(['eligibility' => 'The member must hold a current eligible loan eligibility decision.']);
             }
 
             // D-8: a submitted committee investigation is required for approval.
@@ -47,11 +58,28 @@ class LoanDecisionService
             }
 
             // RA-6: final terms must be explicitly resolved at approval and are
-            // snapshotted so later product edits never alter them.
+            // snapshotted so later product edits never alter them. The service
+            // revalidates the resolved values rather than trusting the request layer.
             foreach (['interest_rate_basis_points', 'interest_method', 'repayment_months'] as $field) {
                 if (! isset($terms[$field]) || $terms[$field] === null || $terms[$field] === '') {
                     throw ValidationException::withMessages([$field => 'The final term must be explicitly resolved at approval.']);
                 }
+            }
+
+            $interestRate = (int) $terms['interest_rate_basis_points'];
+            $interestMethod = $terms['interest_method'];
+            $repaymentMonths = (int) $terms['repayment_months'];
+
+            if ($interestRate < 0) {
+                throw ValidationException::withMessages(['interest_rate_basis_points' => 'The interest rate cannot be negative.']);
+            }
+
+            if (! in_array($interestMethod, ['flat', 'reducing_balance'], true)) {
+                throw ValidationException::withMessages(['interest_method' => 'The interest method is not supported.']);
+            }
+
+            if ($repaymentMonths < 1) {
+                throw ValidationException::withMessages(['repayment_months' => 'Repayment months must be at least 1.']);
             }
 
             // RA-6: an explicit, non-empty decision reason is required to approve.
@@ -64,9 +92,9 @@ class LoanDecisionService
                 'decided_by' => $admin->id,
                 'decision' => 'approved',
                 'approved_amount_minor' => $approvedAmount,
-                'interest_rate_basis_points' => (int) $terms['interest_rate_basis_points'],
-                'interest_method' => $terms['interest_method'],
-                'repayment_months' => (int) $terms['repayment_months'],
+                'interest_rate_basis_points' => $interestRate,
+                'interest_method' => $interestMethod,
+                'repayment_months' => $repaymentMonths,
                 'decision_reason' => $terms['decision_reason'],
                 'decided_at' => now(),
             ]);
@@ -76,9 +104,9 @@ class LoanDecisionService
                 'member_id' => $application->member_id,
                 'loan_number' => $this->uniqueLoanNumber(),
                 'principal_amount_minor' => $approvedAmount,
-                'interest_rate_basis_points' => (int) $terms['interest_rate_basis_points'],
-                'interest_method' => $terms['interest_method'],
-                'repayment_months' => (int) $terms['repayment_months'],
+                'interest_rate_basis_points' => $interestRate,
+                'interest_method' => $interestMethod,
+                'repayment_months' => $repaymentMonths,
                 'status' => 'pending_disbursement',
             ]);
 

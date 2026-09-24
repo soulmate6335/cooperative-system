@@ -20,6 +20,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Link as RouterLink } from 'react-router-dom'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
+import GavelIcon from '@mui/icons-material/Gavel'
 import GroupIcon from '@mui/icons-material/Group'
 import ListAltIcon from '@mui/icons-material/ListAlt'
 import PaymentsIcon from '@mui/icons-material/Payments'
@@ -74,6 +75,7 @@ export function AppLayout(): ReactNode {
       { label: 'Dashboard', to: '/admin', icon: DashboardIcon },
       { label: 'Member Applications', to: '/admin/membership-applications', icon: GroupIcon },
       { label: 'Loan Applications', to: '/admin/loans/applications', icon: RequestQuoteIcon },
+      { label: 'Loan Decisions', to: '/admin/loan-decisions', icon: GavelIcon },
       { label: 'Loan Eligibility', to: '/admin/loan-eligibility', icon: FactCheckIcon },
       { label: 'Loan Products', to: '/admin/loan-products', icon: Inventory2Icon },
       { label: 'Committee Meetings', to: '/admin/committee-meetings', icon: AssignmentIndIcon },

@@ -107,6 +107,8 @@ export interface LoanInvestigation {
   id: string
   loan_application_id: string
   assigned_to: string
+  /** Present on admin decision detail, where the assignee user is eager-loaded. */
+  assignee?: { id: string; name: string } | null
   investigation_date: string | null
   member_findings: string | null
   savings_findings: string | null
@@ -125,6 +127,8 @@ export interface LoanDecision {
   id: string
   loan_application_id: string
   decided_by: string
+  /** Decision maker name; present on admin endpoints that eager-load the user. */
+  decided_by_name: string | null
   decision: 'approved' | 'rejected'
   approved_amount_minor: number | null
   interest_rate_basis_points: number | null
@@ -236,6 +240,15 @@ export interface EligibilityAssessment {
   member: EligibilityMemberSummary
   product: LoanProduct
   factors: EligibilityFactors
+}
+
+/** Admin final decision detail: the application review surface + eligibility context. */
+export interface AdminLoanDecisionDetail {
+  application: LoanApplication
+  eligibility: {
+    decision: EligibilityDecision
+    factors: EligibilityFactors
+  }
 }
 
 export type AccountType = 'contribution' | 'savings' | 'shares'

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminLoanController;
+use App\Http\Controllers\AdminLoanDecisionController;
 use App\Http\Controllers\AdminLoanEligibilityController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommitteeLoanController;
@@ -77,6 +78,12 @@ Route::prefix('v1')->group(function (): void {
         Route::post('admin/loans/applications/{application}/cancel', [AdminLoanController::class, 'cancel']);
         Route::post('admin/loans/applications/{application}/approve', [AdminLoanController::class, 'approve']);
         Route::post('admin/loans/applications/{application}/reject', [AdminLoanController::class, 'reject']);
+
+        // Admin final loan decisions.
+        Route::get('admin/loan-decisions', [AdminLoanDecisionController::class, 'index']);
+        Route::get('admin/loan-decisions/{application}', [AdminLoanDecisionController::class, 'show']);
+        Route::post('admin/loan-decisions/{application}/approve', [AdminLoanDecisionController::class, 'approve']);
+        Route::post('admin/loan-decisions/{application}/reject', [AdminLoanDecisionController::class, 'reject']);
 
         // Admin loan eligibility review.
         Route::get('admin/loan-eligibility/members', [AdminLoanEligibilityController::class, 'members']);

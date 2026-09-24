@@ -113,6 +113,9 @@ class LoanEligibilityService
             ->where('loan_product_id', $product->id)
             ->orderByDesc('decided_at')
             ->orderByDesc('created_at')
+            // UUIDv7 keys are time-ordered, so this tiebreaker makes "latest"
+            // deterministic even when two decisions share the same second.
+            ->orderByDesc('id')
             ->first();
     }
 

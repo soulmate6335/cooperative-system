@@ -132,4 +132,19 @@ class LoanApplicationPolicy
             && $user->hasRole('admin', 'super_admin')
             && $user->hasPermission('loans.reject');
     }
+
+    /**
+     * The final decision queue/detail is reserved for administrators with the
+     * loan review permission. Only admin/super_admin roles hold it alongside
+     * the approve/reject permissions, so the queue stays admin-only.
+     */
+    public function viewAnyDecisions(User $user): bool
+    {
+        return $user->hasRole('admin', 'super_admin') && $user->hasPermission('loans.view');
+    }
+
+    public function viewLoanDecision(User $user, LoanApplication $application): bool
+    {
+        return $this->viewAnyDecisions($user);
+    }
 }

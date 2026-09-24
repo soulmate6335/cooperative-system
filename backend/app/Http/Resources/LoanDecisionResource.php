@@ -13,6 +13,7 @@ class LoanDecisionResource extends JsonResource
             'id' => $this->id,
             'loan_application_id' => $this->loan_application_id,
             'decided_by' => $this->decided_by,
+            'decided_by_name' => $this->whenLoaded('decidedBy', fn () => $this->decidedBy?->name ?? null),
             'decision' => $this->decision,
             'approved_amount_minor' => $this->approved_amount_minor,
             'interest_rate_basis_points' => $this->interest_rate_basis_points,
